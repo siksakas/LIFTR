@@ -39,7 +39,22 @@ final class CheckInPartner {
     /// Set when the agent saves a check-in, so the UI can confirm it.
     private(set) var lastLogged: String?
 
-    var isConfigured: Bool { ElevenLabsSettings.load() != nil }
+    /// Bumped when the agent ID is saved in the app, so views re-check `isConfigured`.
+    private var settingsRevision = 0
+
+    var isConfigured: Bool {
+        _ = settingsRevision
+        return ElevenLabsSettings.load() != nil
+    }
+
+    /// Saves an agent ID pasted into the app. Returns false if it doesn't look like one.
+    @discardableResult
+    func saveAgentID(_ raw: String) -> Bool {
+        guard let id = ElevenLabsSettings.normalizedAgentID(raw) else { return false }
+        UserDefaults.standard.set(id, forKey: ElevenLabsSettings.savedAgentIDKey)
+        settingsRevision += 1
+        return true
+    }
 
     private let store: CheckInStore
     @ObservationIgnored private var conversation: Conversation?

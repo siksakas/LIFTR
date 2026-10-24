@@ -147,16 +147,39 @@ private struct Transcript: View {
 }
 
 private struct SetupHint: View {
+    @Environment(CheckInPartner.self) private var partner
+    @State private var agentID = ""
+    @State private var invalid = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Voice partner isn't set up yet")
                 .font(.headline)
-            Text("Copy Config/ElevenLabs.example.plist to LIFTR/ElevenLabs.plist and add your ElevenLabs agent ID. See docs/elevenlabs-agent.md.")
+            Text("Paste your ElevenLabs agent ID below, or add it to LIFTR/ElevenLabs.plist. See docs/elevenlabs-agent.md.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            HStack {
+                TextField("agent_…", text: $agentID)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onSubmit(save)
+                Button("Save", action: save)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(agentID.isEmpty)
+            }
+            if invalid {
+                Text("That doesn't look like an agent ID. It starts with agent_.")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func save() {
+        invalid = !partner.saveAgentID(agentID)
     }
 }

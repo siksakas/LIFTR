@@ -88,6 +88,9 @@ Description: *Get the user's current sober streak, Liftr score, and pet health.*
 2. Set `AgentID` to the agent's ID (shown on the agent page, starts with `agent_`).
 3. Build and run. Xcode will fetch the `ElevenLabs` Swift package the first time.
 
+Or skip the plist: run the app, open the **Talk** tab, and paste the agent ID into the setup card.
+It's saved on the device. A plist, if present, takes priority.
+
 ### Public vs private agent
 
 - **Public agent** (simplest, fine for development): leave authentication off on the agent and
