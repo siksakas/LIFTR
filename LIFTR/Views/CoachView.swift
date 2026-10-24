@@ -491,34 +491,66 @@ private extension String {
     }
 }
 
-/// Reveals text a word at a time. The hidden words still take up their space,
+/// Fades text in a word at a time. Hidden words still take up their space,
 /// so the centred lines don't reflow as it fills in.
 private struct WordByWord: View {
     var text: String
     var animates = true
+    var color = Palette.tukInk
     var onFinished: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shownWords = 0
+    /// When each word starts to fade in.
+    @State private var starts: [Date] = []
+    @State private var isDone = false
 
-    private static let delay = Duration.milliseconds(80)
+    /// Time between one word starting to appear and the next.
+    private static let delay = 0.08
+    /// How long each word takes to fade in.
+    private static let fade = 0.35
 
     var body: some View {
-        let ends = Self.wordEnds(in: text)
-        let count = reduceMotion || !animates ? ends.count : min(shownWords, ends.count)
-        let split = count == 0 ? text.startIndex : ends[count - 1]
-        (Text(text[..<split]) + Text(text[split...]).foregroundColor(.clear))
-            .accessibilityLabel(text)
-            .task(id: text) {
-                guard animates, !reduceMotion else { return }
-                // The text can grow while it streams in; carry on from the words already shown.
-                while shownWords < Self.wordEnds(in: text).count {
-                    try? await Task.sleep(for: Self.delay)
-                    guard !Task.isCancelled else { return }
-                    shownWords += 1
+        Group {
+            if reduceMotion || !animates {
+                Text(text)
+            } else {
+                TimelineView(.animation(paused: isDone)) { context in
+                    words(at: context.date)
                 }
-                onFinished()
             }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(text)
+        .task(id: text) { await reveal() }
+    }
+
+    private func words(at now: Date) -> Text {
+        var result = Text("")
+        var start = text.startIndex
+        for (index, end) in Self.wordEnds(in: text).enumerated() {
+            let opacity = index < starts.count ? min(max(now.timeIntervalSince(starts[index]) / Self.fade, 0), 1) : 0
+            result = result + Text(text[start..<end]).foregroundColor(color.opacity(opacity))
+            start = end
+        }
+        return result
+    }
+
+    private func reveal() async {
+        guard animates, !reduceMotion else { return }
+        let count = Self.wordEnds(in: text).count
+        // The text can grow while it streams in; new words queue up behind the ones already showing.
+        var next = max(starts.last.map { $0.addingTimeInterval(Self.delay) } ?? .now, .now)
+        while starts.count < count {
+            starts.append(next)
+            next = next.addingTimeInterval(Self.delay)
+        }
+        if starts.count > count { starts.removeLast(starts.count - count) }
+        isDone = false
+        guard let last = starts.last else { return }
+        try? await Task.sleep(for: .seconds(max(last.timeIntervalSinceNow + Self.fade, 0)))
+        guard !Task.isCancelled else { return }
+        isDone = true
+        onFinished()
     }
 
     /// Where each word ends, counting the space after it.
