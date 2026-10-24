@@ -122,27 +122,47 @@ private struct StatusOrb: View {
     }
 }
 
+/// Shows only the most recent line of the conversation. When a new line
+/// arrives the old one drifts up and fades out while the new one rises in.
 private struct Transcript: View {
     var lines: [CheckInPartner.Line]
 
+    private var latest: (line: CheckInPartner.Line, text: String)? {
+        for line in lines.reversed() {
+            let text = Self.displayText(line.text)
+            if !text.isEmpty { return (line, text) }
+        }
+        return nil
+    }
+
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(lines) { line in
-                        Text(line.text)
-                            .padding(10)
-                            .background(line.fromUser ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .frame(maxWidth: .infinity, alignment: line.fromUser ? .trailing : .leading)
-                            .id(line.id)
-                    }
-                }
-            }
-            .onChange(of: lines.count) {
-                if let last = lines.last { proxy.scrollTo(last.id, anchor: .bottom) }
+        ZStack {
+            if let latest {
+                Text(latest.text)
+                    .font(.title3)
+                    .multilineTextAlignment(latest.line.fromUser ? .trailing : .leading)
+                    .padding(14)
+                    .background(latest.line.fromUser ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .frame(maxWidth: .infinity, alignment: latest.line.fromUser ? .trailing : .leading)
+                    .id(latest.line.id)
+                    .transition(.asymmetric(
+                        insertion: .offset(y: 40).combined(with: .opacity),
+                        removal: .offset(y: -60).combined(with: .opacity)
+                    ))
             }
         }
+        .frame(maxWidth: .infinity, minHeight: 140)
+        .animation(.easeInOut(duration: 0.45), value: latest?.line.id)
+    }
+
+    /// Strips ElevenLabs v3 audio tags such as `[happy]` or `[gentle]` and
+    /// tidies the whitespace they leave behind.
+    static func displayText(_ text: String) -> String {
+        text.replacing(/\[[^\]]*\]/, with: "")
+            .replacing(/\s+([,.!?;:])/, with: { $0.output.1 })
+            .replacing(/\s+/, with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
