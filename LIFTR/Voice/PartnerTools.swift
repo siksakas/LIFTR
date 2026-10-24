@@ -121,8 +121,10 @@ struct ProgressReport: Encodable {
     var cigarettesLast7Days: Int
     var liftrScore: Int
     var liftrScoreRange = "300-850"
+    var scoreChangeThisWeek: Int?
+    var tukStage: String
+    var tukStageNumber: Int
     var petName: String
-    var petHealth: Int
     var petMood: String
 
     init(_ progress: RecoveryProgress) {
@@ -133,8 +135,10 @@ struct ProgressReport: Encodable {
         cigarettesToday = progress.cigarettesToday
         cigarettesLast7Days = progress.cigarettesLast7Days
         liftrScore = progress.score
-        petName = Pet.name
-        petHealth = progress.petHealth
-        petMood = progress.petMood.rawValue
+        scoreChangeThisWeek = progress.scoreChangeThisWeek
+        tukStage = progress.stage.title
+        tukStageNumber = progress.stage.rawValue
+        petName = TukStage.name
+        petMood = progress.stage.mood
     }
 }

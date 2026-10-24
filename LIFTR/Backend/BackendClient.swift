@@ -21,18 +21,24 @@ struct BackendClient {
         var errorDescription: String? { message }
     }
 
-    /// Saves one day's check-in to Snowflake. Sending the same day again overwrites it.
-    func sendLog(dayKey: String, cigarettes: Int, cravingLevel: Int?, mood: String?, note: String?, source: String) async throws {
-        var body: [String: Any] = [
-            "dayKey": dayKey,
-            "quantity": cigarettes,
-            "productType": "cigarette",
-            "source": source,
-        ]
-        if let cravingLevel { body["cravingLevel"] = cravingLevel }
-        if let mood { body["mood"] = mood }
-        if let note { body["note"] = note }
-        _ = try await post("logs", body: body)
+    /// Saves one day's check-in to Snowflake, one row per product, so a correction to 0
+    /// overwrites the old number. Sending the same day again overwrites it.
+    func sendLog(dayKey: String, cigarettes: Int, vapes: Int, pouches: Int, cravingLevel: Int?, mood: String?, note: String?, source: String) async throws {
+        for (product, quantity) in [("cigarette", cigarettes), ("vape", vapes), ("pouch", pouches)] {
+            var body: [String: Any] = [
+                "dayKey": dayKey,
+                "quantity": quantity,
+                "productType": product,
+                "source": source,
+            ]
+            // Craving, mood and note describe the day, so they ride along once.
+            if product == "cigarette" {
+                if let cravingLevel { body["cravingLevel"] = cravingLevel }
+                if let mood { body["mood"] = mood }
+                if let note { body["note"] = note }
+            }
+            _ = try await post("logs", body: body)
+        }
     }
 
     /// Asks the AI coach for its next reply. The backend adds the user's trends from Snowflake;
@@ -48,7 +54,10 @@ struct BackendClient {
                 "logged_today": progress.loggedToday,
                 "cigarettes_today": progress.cigarettesToday.map { $0 as Any } ?? NSNull(),
                 "cigarettes_last_7_days": progress.cigarettesLast7Days,
-                "pet_mood": progress.petMood.rawValue,
+                "tuk_stage": progress.stage.title,
+                "pet_mood": progress.stage.mood,
+                "usual_per_day": progress.baseline,
+                "score_change_this_week": progress.scoreChangeThisWeek.map { $0 as Any } ?? NSNull(),
             ] as [String: Any],
         ]
         let json = try await post("coach", body: body)

@@ -257,7 +257,8 @@
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Liftr uses the microphone so you can talk to your check-in partner about your day.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Liftr uses the microphone so you can talk to Tuk, log by voice, and record voice notes from your circle.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Liftr turns what you say, like \"I smoked two cigarettes\", into a log on your phone.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -304,7 +305,8 @@
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Liftr uses the microphone so you can talk to your check-in partner about your day.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Liftr uses the microphone so you can talk to Tuk, log by voice, and record voice notes from your circle.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Liftr turns what you say, like \"I smoked two cigarettes\", into a log on your phone.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
