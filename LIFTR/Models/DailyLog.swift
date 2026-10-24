@@ -21,6 +21,9 @@ final class DailyLog {
     /// tapped on the watch, "manual" otherwise.
     var source: String
     var updatedAt: Date
+    /// When someone last stated the full day's total (voice or manual check-in). A watch tap
+    /// from before this that arrives late is already included in that total.
+    var totalRecordedAt: Date?
 
     init(
         day: Date,

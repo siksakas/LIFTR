@@ -17,10 +17,17 @@ final class CigaretteEvent {
     var smokedAt: Date
     /// "watch" for now; leaves room for other quick-log sources.
     var source: String
+    /// False when it arrived after a check-in whose total already included it.
+    var countedInDay: Bool
+    /// Set once the voice partner has been told about it, so each one is brought up once,
+    /// even if it reached the phone after a call had already started.
+    var talkedAbout: Bool
 
-    init(id: UUID = UUID(), smokedAt: Date, source: String) {
+    init(id: UUID = UUID(), smokedAt: Date, source: String, countedInDay: Bool = true) {
         self.id = id
         self.smokedAt = smokedAt
         self.source = source
+        self.countedInDay = countedInDay
+        self.talkedAbout = false
     }
 }

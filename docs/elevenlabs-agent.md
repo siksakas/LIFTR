@@ -115,9 +115,13 @@ is sent to the phone with WatchConnectivity and saved as a `CigaretteEvent` with
 it also adds one to that day's `DailyLog`, so the streak, score and pet update right away. Taps made
 while the phone is out of reach are queued and delivered later.
 
-When a voice check-in starts, the app sends the cigarettes tapped since the last check-in connected
-as `watch_cigarettes_since_last_talk` (a count) and `watch_cigarette_times` (e.g. "today at 9:14 AM,
-today at 1:40 PM", or "none"). Before the first ever check-in, it covers the last 24 hours.
+When a voice check-in starts, the app sends the watch cigarettes the partner hasn't been told about
+yet (from the last 7 days) as `watch_cigarettes_since_last_talk` (a count) and `watch_cigarette_times`
+(e.g. "today at 9:14 AM, today at 1:40 PM", or "none"). Each one is marked as talked about once the
+call connects, so a tap that reaches the phone late still comes up in the next call.
+
+If a tap reaches the phone late, after a voice or manual check-in already saved that day's full
+total, it's kept for the record but not added again, since the total already included it.
 
 To run it, pick the **LIFTR Watch App** scheme and a paired watch simulator, or just install the
 iPhone app on a phone with a paired watch; the watch app is embedded in the iPhone app.

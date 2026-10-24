@@ -83,11 +83,10 @@ final class CheckInPartner {
         attempt += 1
         let thisAttempt = attempt
 
-        // Cigarettes tapped on the watch since the last talk, so the partner can ask about them.
+        // Cigarettes tapped on the watch that the partner hasn't asked about yet.
         // Marked as talked about once the call connects.
-        let talkStartedAt = Date.now
-        let quickLogs = store.cigarettes(since: Self.lastTalkAt ?? Calendar.current.date(byAdding: .day, value: -1, to: talkStartedAt)!)
-        let config = ConversationConfig(dynamicVariables: dynamicVariables(quickLogs: quickLogs, now: talkStartedAt))
+        let quickLogs = store.cigarettesNotTalkedAbout()
+        let config = ConversationConfig(dynamicVariables: dynamicVariables(quickLogs: quickLogs, now: .now))
         do {
             let conversation: Conversation
             if let tokenURL = settings.conversationTokenURL {
@@ -103,7 +102,7 @@ final class CheckInPartner {
                 return
             }
             self.conversation = conversation
-            Self.lastTalkAt = talkStartedAt
+            store.markTalkedAbout(quickLogs)
             observe(conversation)
         } catch {
             if thisAttempt == attempt { status = .failed(error.localizedDescription) }
@@ -200,14 +199,6 @@ final class CheckInPartner {
     }
 
     // MARK: - Setup
-
-    /// When the last voice check-in connected. Cigarettes logged on the watch after this
-    /// haven't been talked about yet.
-    private static let lastTalkKey = "LastCheckInTalkAt"
-    private static var lastTalkAt: Date? {
-        get { UserDefaults.standard.object(forKey: lastTalkKey) as? Date }
-        set { UserDefaults.standard.set(newValue, forKey: lastTalkKey) }
-    }
 
     /// Values the agent's prompt can reference as {{variable_name}}. Every variable used in
     /// the agent's prompt or first message must be sent here, or the conversation won't start.

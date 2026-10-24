@@ -45,6 +45,7 @@ final class CheckInStore {
             existing.note = note.map { $0.isEmpty ? nil : $0 } ?? existing.note
             existing.source = source
             existing.updatedAt = .now
+            existing.totalRecordedAt = .now
             entry = existing
         } else {
             entry = DailyLog(
@@ -55,6 +56,7 @@ final class CheckInStore {
                 note: note?.isEmpty == true ? nil : note,
                 source: source
             )
+            entry.totalRecordedAt = .now
             context.insert(entry)
         }
         try context.save()
@@ -68,11 +70,17 @@ final class CheckInStore {
     /// Does nothing if `id` was already saved, since the watch may deliver the same tap twice.
     func addCigarette(id: UUID, smokedAt: Date, source: String) throws {
         guard event(id: id) == nil else { return }
-        context.insert(CigaretteEvent(id: id, smokedAt: smokedAt, source: source))
+        let day = log(for: smokedAt)
+        // A tap that was stuck on the watch while the user stated the day's full total
+        // is already part of that total, so only keep it for the record.
+        let alreadyCounted = day?.totalRecordedAt.map { smokedAt <= $0 } ?? false
+        context.insert(CigaretteEvent(id: id, smokedAt: smokedAt, source: source, countedInDay: !alreadyCounted))
 
-        if let day = log(for: smokedAt) {
-            day.cigarettesSmoked += 1
-            day.updatedAt = .now
+        if let day {
+            if !alreadyCounted {
+                day.cigarettesSmoked += 1
+                day.updatedAt = .now
+            }
         } else {
             context.insert(DailyLog(day: smokedAt, cigarettesSmoked: 1, source: source))
         }
@@ -83,7 +91,7 @@ final class CheckInStore {
     /// Takes back a quick-logged cigarette, e.g. after an accidental tap.
     func removeCigarette(id: UUID) throws {
         guard let event = event(id: id) else { return }
-        if let day = log(for: event.smokedAt) {
+        if event.countedInDay, let day = log(for: event.smokedAt) {
             day.cigarettesSmoked = max(0, day.cigarettesSmoked - 1)
             day.updatedAt = .now
             // A day that only existed because of this tap shouldn't turn into a "sober" check-in.
@@ -96,13 +104,21 @@ final class CheckInStore {
         refresh()
     }
 
-    /// Quick-logged cigarettes after `date`, oldest first.
-    func cigarettes(since date: Date) -> [CigaretteEvent] {
+    /// Quick-logged cigarettes from the last week the voice partner hasn't brought up yet, oldest first.
+    func cigarettesNotTalkedAbout(now: Date = .now) -> [CigaretteEvent] {
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: now)!
         let descriptor = FetchDescriptor<CigaretteEvent>(
-            predicate: #Predicate { $0.smokedAt > date },
+            predicate: #Predicate { !$0.talkedAbout && $0.smokedAt > weekAgo },
             sortBy: [SortDescriptor(\.smokedAt)]
         )
         return (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// Records that the voice partner was told about these, so the next call doesn't repeat them.
+    func markTalkedAbout(_ events: [CigaretteEvent]) {
+        guard !events.isEmpty else { return }
+        events.forEach { $0.talkedAbout = true }
+        try? context.save()
     }
 
     private func event(id: UUID) -> CigaretteEvent? {
