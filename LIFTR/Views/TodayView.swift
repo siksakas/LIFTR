@@ -135,6 +135,14 @@ private struct ScoreRow: View {
 private struct HistoryRow: View {
     var log: DailyLog
 
+    private var sourceIcon: String? {
+        switch log.source {
+        case "voice": "waveform"
+        case "watch": "applewatch"
+        default: nil
+        }
+    }
+
     var body: some View {
         HStack {
             Image(systemName: log.isSober ? "checkmark.circle.fill" : "xmark.circle")
@@ -151,8 +159,8 @@ private struct HistoryRow: View {
             Spacer()
             Text(log.isSober ? "Sober" : "\(log.cigarettesSmoked) smoked")
                 .foregroundStyle(.secondary)
-            if log.source == "voice" {
-                Image(systemName: "waveform")
+            if let icon = sourceIcon {
+                Image(systemName: icon)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

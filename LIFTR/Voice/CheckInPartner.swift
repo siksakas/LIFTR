@@ -83,7 +83,11 @@ final class CheckInPartner {
         attempt += 1
         let thisAttempt = attempt
 
-        let config = ConversationConfig(dynamicVariables: dynamicVariables())
+        // Cigarettes tapped on the watch since the last talk, so the partner can ask about them.
+        // Marked as talked about once the call connects.
+        let talkStartedAt = Date.now
+        let quickLogs = store.cigarettes(since: Self.lastTalkAt ?? Calendar.current.date(byAdding: .day, value: -1, to: talkStartedAt)!)
+        let config = ConversationConfig(dynamicVariables: dynamicVariables(quickLogs: quickLogs, now: talkStartedAt))
         do {
             let conversation: Conversation
             if let tokenURL = settings.conversationTokenURL {
@@ -99,6 +103,7 @@ final class CheckInPartner {
                 return
             }
             self.conversation = conversation
+            Self.lastTalkAt = talkStartedAt
             observe(conversation)
         } catch {
             if thisAttempt == attempt { status = .failed(error.localizedDescription) }
@@ -196,9 +201,17 @@ final class CheckInPartner {
 
     // MARK: - Setup
 
+    /// When the last voice check-in connected. Cigarettes logged on the watch after this
+    /// haven't been talked about yet.
+    private static let lastTalkKey = "LastCheckInTalkAt"
+    private static var lastTalkAt: Date? {
+        get { UserDefaults.standard.object(forKey: lastTalkKey) as? Date }
+        set { UserDefaults.standard.set(newValue, forKey: lastTalkKey) }
+    }
+
     /// Values the agent's prompt can reference as {{variable_name}}. Every variable used in
     /// the agent's prompt or first message must be sent here, or the conversation won't start.
-    private func dynamicVariables() -> [String: String] {
+    private func dynamicVariables(quickLogs: [CigaretteEvent], now: Date) -> [String: String] {
         let progress = store.progress
         return [
             "sober_streak_days": String(progress.currentStreak),
@@ -208,7 +221,36 @@ final class CheckInPartner {
             "liftr_score": String(progress.score),
             "pet_name": Pet.name,
             "pet_mood": progress.petMood.rawValue,
+            "watch_cigarettes_since_last_talk": String(quickLogs.count),
+            "watch_cigarette_times": Self.describeTimes(of: quickLogs, now: now),
         ]
+    }
+
+    /// "today at 9:14 AM, today at 1:40 PM", or "none". Spoken by the agent, so plain words.
+    private static func describeTimes(of logs: [CigaretteEvent], now: Date, calendar: Calendar = .current) -> String {
+        guard !logs.isEmpty else { return "none" }
+        let time = DateFormatter()
+        time.timeStyle = .short
+        time.dateStyle = .none
+        let weekday = DateFormatter()
+        weekday.setLocalizedDateFormatFromTemplate("EEEE")
+        // Long lists are tiring to hear; the count variable still has the full number.
+        let listed = logs.suffix(8)
+        let earlier = logs.count - listed.count
+        let times = listed.map { log in
+            let day: String
+            if calendar.isDate(log.smokedAt, inSameDayAs: now) {
+                day = "today"
+            } else if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+                      calendar.isDate(log.smokedAt, inSameDayAs: yesterday) {
+                day = "yesterday"
+            } else {
+                day = "on " + weekday.string(from: log.smokedAt)
+            }
+            return "\(day) at \(time.string(from: log.smokedAt))"
+        }
+        let prefix = earlier > 0 ? ["\(earlier) earlier"] : []
+        return (prefix + times).joined(separator: ", ")
     }
 
     /// Asks our own backend for a conversation token for a private agent.

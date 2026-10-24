@@ -13,12 +13,13 @@ struct LIFTRApp: App {
     private let container: ModelContainer
     @State private var store: CheckInStore
     @State private var partner: CheckInPartner
+    private let watchBridge: PhoneWatchBridge
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let container: ModelContainer
         do {
-            container = try ModelContainer(for: DailyLog.self)
+            container = try ModelContainer(for: DailyLog.self, CigaretteEvent.self)
         } catch {
             fatalError("Couldn't open the Liftr database: \(error)")
         }
@@ -26,6 +27,8 @@ struct LIFTRApp: App {
         self.container = container
         _store = State(initialValue: store)
         _partner = State(initialValue: CheckInPartner(store: store))
+        watchBridge = PhoneWatchBridge(store: store)
+        watchBridge.activate()
     }
 
     var body: some Scene {

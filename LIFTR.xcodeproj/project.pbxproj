@@ -8,16 +8,52 @@
 
 /* Begin PBXBuildFile section */
 		B6C25530308D0A000066EEAC /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = B6C25531308D0A000066EEAC /* ElevenLabs */; };
+		B6C26005308E00000066EEAC /* LIFTR Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B6C26002308E00000066EEAC /* LIFTR Watch App.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B6C26007308E00000066EEAC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B6C25510308D098E0066EEAC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B6C26001308E00000066EEAC;
+			remoteInfo = "LIFTR Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B6C26006308E00000066EEAC /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B6C26005308E00000066EEAC /* LIFTR Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		B6C25518308D098E0066EEAC /* LIFTR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LIFTR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B6C26002308E00000066EEAC /* LIFTR Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "LIFTR Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B6C2551A308D098E0066EEAC /* LIFTR */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = LIFTR;
+			sourceTree = "<group>";
+		};
+		B6C26003308E00000066EEAC /* LIFTRWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LIFTRWatch;
+			sourceTree = "<group>";
+		};
+		B6C26004308E00000066EEAC /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -29,6 +65,11 @@
 				B6C25530308D0A000066EEAC /* ElevenLabs in Frameworks */,
 			);
 		};
+		B6C2600A308E00000066EEAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -36,6 +77,8 @@
 			isa = PBXGroup;
 			children = (
 				B6C2551A308D098E0066EEAC /* LIFTR */,
+				B6C26003308E00000066EEAC /* LIFTRWatch */,
+				B6C26004308E00000066EEAC /* Shared */,
 				B6C25519308D098E0066EEAC /* Products */,
 			);
 			sourceTree = "<group>";
@@ -44,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				B6C25518308D098E0066EEAC /* LIFTR.app */,
+				B6C26002308E00000066EEAC /* LIFTR Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -58,11 +102,16 @@
 				B6C25514308D098E0066EEAC /* Sources */,
 				B6C25515308D098E0066EEAC /* Frameworks */,
 				B6C25516308D098E0066EEAC /* Resources */,
+				B6C26006308E00000066EEAC /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
+			dependencies = (
+				B6C26008308E00000066EEAC /* PBXTargetDependency */,
+			);
 			fileSystemSynchronizedGroups = (
 				B6C2551A308D098E0066EEAC /* LIFTR */,
+				B6C26004308E00000066EEAC /* Shared */,
 			);
 			name = LIFTR;
 			packageProductDependencies = (
@@ -70,6 +119,29 @@
 			);
 			productName = LIFTR;
 			productReference = B6C25518308D098E0066EEAC /* LIFTR.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B6C26001308E00000066EEAC /* LIFTR Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B6C2600E308E00000066EEAC /* Build configuration list for PBXNativeTarget "LIFTR Watch App" */;
+			buildPhases = (
+				B6C26009308E00000066EEAC /* Sources */,
+				B6C2600A308E00000066EEAC /* Frameworks */,
+				B6C2600B308E00000066EEAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B6C26003308E00000066EEAC /* LIFTRWatch */,
+				B6C26004308E00000066EEAC /* Shared */,
+			);
+			name = "LIFTR Watch App";
+			packageProductDependencies = (
+			);
+			productName = "LIFTR Watch App";
+			productReference = B6C26002308E00000066EEAC /* LIFTR Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -83,6 +155,9 @@
 				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					B6C25517308D098E0066EEAC = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					B6C26001308E00000066EEAC = {
 						CreatedOnToolsVersion = 27.1;
 					};
 				};
@@ -105,12 +180,18 @@
 			projectRoot = "";
 			targets = (
 				B6C25517308D098E0066EEAC /* LIFTR */,
+				B6C26001308E00000066EEAC /* LIFTR Watch App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		B6C25516308D098E0066EEAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		B6C2600B308E00000066EEAC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -123,7 +204,21 @@
 			files = (
 			);
 		};
+		B6C26009308E00000066EEAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B6C26008308E00000066EEAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = B6C26001308E00000066EEAC /* LIFTR Watch App */;
+			targetProxy = B6C26007308E00000066EEAC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B6C25521308D098F0066EEAC /* Debug configuration for PBXProject "LIFTR" */ = {
@@ -336,6 +431,72 @@
 			};
 			name = Release;
 		};
+		B6C2600C308E00000066EEAC /* Debug configuration for PBXNativeTarget "LIFTR Watch App" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 759YQ3AVRA;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Liftr;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = siksakas.LIFTR;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = siksakas.LIFTR.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		B6C2600D308E00000066EEAC /* Release configuration for PBXNativeTarget "LIFTR Watch App" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 759YQ3AVRA;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Liftr;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = siksakas.LIFTR;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = siksakas.LIFTR.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -352,6 +513,14 @@
 			buildConfigurations = (
 				B6C25524308D098F0066EEAC /* Debug configuration for PBXNativeTarget "LIFTR" */,
 				B6C25525308D098F0066EEAC /* Release configuration for PBXNativeTarget "LIFTR" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		B6C2600E308E00000066EEAC /* Build configuration list for PBXNativeTarget "LIFTR Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B6C2600C308E00000066EEAC /* Debug configuration for PBXNativeTarget "LIFTR Watch App" */,
+				B6C2600D308E00000066EEAC /* Release configuration for PBXNativeTarget "LIFTR Watch App" */,
 			);
 			defaultConfigurationName = Release;
 		};
