@@ -12,6 +12,7 @@ struct ProgressScreen: View {
     @Environment(CheckInStore.self) private var store
     @Environment(Reminders.self) private var reminders
     @State private var previewStage: TukStage?
+    @State private var sampleDataError: String?
 
     var body: some View {
         let progress = store.progress
@@ -33,6 +34,9 @@ struct ProgressScreen: View {
                 WeeklyTrendCard(weeks: progress.weeklyScores)
                 cravingsCard
                 pathCard(progress)
+                #if DEBUG
+                sampleDataButton
+                #endif
             }
             .padding(.horizontal, 16)
             .padding(.top, 6)
@@ -41,6 +45,31 @@ struct ProgressScreen: View {
         .scrollIndicators(.hidden)
         .background(Palette.background)
         .tabBarClearance()
+    }
+
+    // MARK: - Sample data
+
+    /// Debug builds only: fills in two weeks of logs for a demo, or takes them out again.
+    private var sampleDataButton: some View {
+        let hasSampleData = store.hasSampleData
+        return VStack(spacing: 4) {
+            Button(hasSampleData ? "Remove sample data" : "Add 2 weeks of sample data") {
+                do {
+                    if hasSampleData { try store.removeSampleData() } else { try store.addSampleData() }
+                    sampleDataError = nil
+                } catch {
+                    sampleDataError = error.localizedDescription
+                }
+            }
+            .font(.figtree(14, .bold, relativeTo: .subheadline))
+            .foregroundStyle(Palette.green)
+            if let sampleDataError {
+                Text(sampleDataError)
+                    .font(.figtree(13, relativeTo: .footnote))
+                    .foregroundStyle(Palette.tanInk)
+            }
+        }
+        .padding(.top, 6)
     }
 
     // MARK: - When cravings hit

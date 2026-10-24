@@ -13,6 +13,18 @@ final class CoachThread {
     struct Item: Identifiable, Equatable {
         var id = UUID().uuidString
         var kind: Kind
+
+        var isFromUser: Bool {
+            switch kind {
+            case .me, .voice: true
+            case .tuk, .note, .separator: false
+            }
+        }
+
+        var isFromTuk: Bool {
+            if case .tuk = kind { return true }
+            return false
+        }
     }
 
     enum Kind: Equatable {

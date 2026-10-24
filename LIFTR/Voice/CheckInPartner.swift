@@ -34,7 +34,7 @@ final class CheckInPartner {
     }
 
     private(set) var status: Status = .idle
-    /// The call's transcript. Tuk's latest reply shows a sentence at a time, as it's spoken.
+    /// The call's transcript, with each reply in full as the agent sends it.
     private(set) var lines: [Line] = []
     private(set) var isMuted = false
     /// Set when the agent saves a check-in, so the UI can confirm it.
@@ -61,13 +61,6 @@ final class CheckInPartner {
     @ObservationIgnored private var conversation: Conversation?
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
     @ObservationIgnored private var handledToolCalls: Set<String> = []
-    /// Every line as the agent sent it, before Tuk's latest reply is cut down to what's been said.
-    @ObservationIgnored private var fullLines: [Line] = []
-    /// Tuk's reply being read out, how many of its sentences are on screen,
-    /// and how long Tuk has been speaking it.
-    @ObservationIgnored private var spokenLineID: String?
-    @ObservationIgnored private var shownSentences = 0
-    @ObservationIgnored private var speakingTime: Duration = .zero
     /// Bumped by every start and end, so a connection that finishes after the user
     /// already tapped End (or started again) can tell it's stale and hang up.
     @ObservationIgnored private var attempt = 0
@@ -84,8 +77,6 @@ final class CheckInPartner {
         }
 
         lines = []
-        fullLines = []
-        spokenLineID = nil
         lastLogged = nil
         handledToolCalls = []
         status = .connecting
@@ -144,19 +135,12 @@ final class CheckInPartner {
             },
             Task { [weak self] in
                 for await messages in conversation.$messages.values {
-                    self?.update(lines: messages.compactMap { message in
+                    self?.lines = messages.compactMap { message in
                         let fromUser = message.role == .user
                         let text = fromUser ? message.content : CheckInPartner.removingAudioTags(message.content)
                         guard !text.isEmpty else { return nil }
                         return Line(id: message.id, fromUser: fromUser, text: text)
-                    })
-                }
-            },
-            Task { [weak self] in
-                let tick = Duration.milliseconds(100)
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: tick)
-                    self?.advanceSpokenLine(by: tick)
+                    }
                 }
             },
             Task { [weak self] in
@@ -177,55 +161,6 @@ final class CheckInPartner {
     private func stopObserving() {
         observers.forEach { $0.cancel() }
         observers = []
-        showWholeReply()
-    }
-
-    // MARK: - Captions
-
-    /// Roughly how fast Tuk talks, plus a short breath between sentences.
-    private static let charactersPerSecond = 14.0
-    private static let pauseBetweenSentences = Duration.milliseconds(250)
-
-    private func update(lines newLines: [Line]) {
-        fullLines = newLines
-        // A new reply from Tuk starts with just its first sentence.
-        if let last = newLines.last, !last.fromUser, last.id != spokenLineID {
-            spokenLineID = last.id
-            shownSentences = 1
-            speakingTime = .zero
-        }
-        refreshLines()
-    }
-
-    /// Shows the next sentence once Tuk has been speaking long enough to have said the ones on screen.
-    private func advanceSpokenLine(by tick: Duration) {
-        guard status == .speaking, shownSentences != .max,
-              let line = fullLines.first(where: { $0.id == spokenLineID }) else { return }
-        speakingTime += tick
-        let sentences = Self.sentences(in: line.text)
-        guard shownSentences < sentences.count else { return }
-        let saidSoFar = sentences.prefix(shownSentences).reduce(Duration.zero) { total, sentence in
-            total + .seconds(Double(sentence.count) / Self.charactersPerSecond) + Self.pauseBetweenSentences
-        }
-        if speakingTime >= saidSoFar {
-            shownSentences += 1
-            refreshLines()
-        }
-    }
-
-    /// Once Tuk stops talking, the rest of the reply goes on screen so the transcript is complete.
-    private func showWholeReply() {
-        guard shownSentences != .max else { return }
-        shownSentences = .max
-        refreshLines()
-    }
-
-    private func refreshLines() {
-        lines = fullLines.map { line in
-            guard line.id == spokenLineID else { return line }
-            let shown = Self.sentences(in: line.text).prefix(shownSentences).joined()
-            return Line(id: line.id, fromUser: line.fromUser, text: shown.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
     }
 
     /// Splits text after each ".", "!", "?" or "…" that's followed by a space, keeping the spaces.
@@ -246,9 +181,7 @@ final class CheckInPartner {
             status = .connecting
         case .active:
             switch agentState {
-            case .listening:
-                if status == .speaking { showWholeReply() }
-                status = .listening
+            case .listening: status = .listening
             case .thinking: status = .thinking
             case .speaking: status = .speaking
             }

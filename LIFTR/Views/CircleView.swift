@@ -36,6 +36,8 @@ struct CircleView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 4)
 
+                CareCard()
+
                 if !saved.isEmpty { savedCard }
                 if !members.isEmpty { peopleCard }
 
@@ -666,6 +668,127 @@ private extension UIImage {
         format.scale = 1
         return UIGraphicsImageRenderer(size: target, format: format).image { _ in
             draw(in: CGRect(origin: .zero, size: target))
+        }
+    }
+}
+
+// MARK: - LIFTR Care
+
+/// Where video visits with a clinician are booked. Both are empty until there's a real
+/// booking service; until then the card says visits are coming soon.
+enum LiftrCare {
+    static let bookingURL: URL? = nil
+    /// Shown under "Next opening", like "Today, 4:30 pm".
+    static let nextOpening: String? = nil
+}
+
+/// "Talk to a professional": a way to book a video visit with a licensed clinician.
+private struct CareCard: View {
+    @Environment(\.openURL) private var openURL
+    @State private var showingComingSoon = false
+
+    private static let navy = Color(hex: 0x0E1224)
+    private static let lavender = Color(hex: 0xC9B6F2)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("LIFTR CARE")
+                .font(.figtree(13, .bold, relativeTo: .caption))
+                .tracking(1.6)
+                .foregroundStyle(Self.lavender)
+            Text("Talk to a professional.")
+                .font(.figtree(34, .heavy, relativeTo: .largeTitle))
+                .tracking(-0.8)
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
+            Text("Licensed clinicians who help people quit nicotine. Private and judgment-free.")
+                .font(.figtree(16, relativeTo: .body))
+                .foregroundStyle(.white.opacity(0.72))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 12) {
+                    bookButton
+                    Spacer(minLength: 0)
+                    nextOpening(alignment: .trailing)
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    bookButton
+                    nextOpening(alignment: .leading)
+                }
+            }
+            .padding(.top, 22)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 22)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack {
+                LinearGradient(colors: [Self.navy, Color(hex: 0x1A2040)], startPoint: .bottomLeading, endPoint: .topTrailing)
+                // The soft blue-to-lavender glow in the top corner.
+                GeometryReader { proxy in
+                    let size = proxy.size.width * 0.62
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Self.lavender, Color(hex: 0x6F86E6), Color(hex: 0x2F45B8).opacity(0.55)],
+                                startPoint: .topTrailing,
+                                endPoint: .bottomLeading
+                            )
+                        )
+                        .frame(width: size, height: size)
+                        .blur(radius: 22)
+                        .position(x: proxy.size.width * 0.82, y: size * 0.42)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .alert("Video visits are coming soon", isPresented: $showingComingSoon) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Booking with a LIFTR Care clinician isn't open yet. If you need help right now, your doctor or a quitline like 1-800-QUIT-NOW can help.")
+        }
+    }
+
+    private var bookButton: some View {
+        Button(action: book) {
+            HStack(spacing: 10) {
+                Text("Book a video visit")
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .font(.figtree(16, .semibold, relativeTo: .headline))
+            .foregroundStyle(Self.navy)
+            .padding(.horizontal, 20)
+            .frame(height: 50)
+            .background(.white, in: Capsule())
+            .fixedSize()
+        }
+        .buttonStyle(.pressable)
+    }
+
+    private func nextOpening(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 2) {
+            Text("Next opening")
+                .font(.figtree(13, relativeTo: .footnote))
+                .foregroundStyle(.white.opacity(0.65))
+            Text(LiftrCare.nextOpening ?? "Coming soon")
+                .font(.figtree(14, .bold, relativeTo: .subheadline))
+                .foregroundStyle(.white)
+        }
+        .fixedSize()
+        .accessibilityElement(children: .combine)
+    }
+
+    private func book() {
+        if let url = LiftrCare.bookingURL {
+            openURL(url)
+        } else {
+            showingComingSoon = true
         }
     }
 }
