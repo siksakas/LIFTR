@@ -7,3 +7,9 @@ DerivedData/
 LIFTR/ElevenLabs.plist
 # Local secrets written by `elevenlabs onboard`
 /.env.local
+
+# Backend secrets and dependencies. Copy backend/.env.example to backend/.env.
+.env
+.env.*
+!.env.example
+node_modules/
