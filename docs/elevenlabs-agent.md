@@ -5,6 +5,10 @@ and the agent calls two **client tools** that run inside the app to log the day 
 progress. Nothing about the agent lives in code except the tool names below, so you can tune the
 voice and personality in the ElevenLabs dashboard without shipping a new build.
 
+> **Already have an agent?** To get the craving button and other nicotine types working, update three
+> things in the dashboard: the first message (now `{{opening_line}}`), the system prompt below, and the
+> three new optional parameters on `log_daily_checkin`. Older agents keep working until you do.
+
 ## 1. Create the agent
 
 In the ElevenLabs dashboard, go to **Agents → New agent → Blank agent** and set:
@@ -12,14 +16,29 @@ In the ElevenLabs dashboard, go to **Agents → New agent → Blank agent** and 
 **First message**
 
 ```
-Hey! Good to hear from you. {{pet_name}} is feeling {{pet_mood}} today. How did your day go?
+{{opening_line}}
 ```
+
+The app picks the opening line: a "how did your day go?" greeting for **Talk about your day**,
+or a calm "I'm here, let's ride this out" for **I'm having a craving**.
 
 **System prompt**
 
 ```
-You are Liftr, a warm, upbeat but honest accountability partner helping someone quit smoking.
-You talk with them once a day, by voice, about how their day went.
+You are Liftr, a warm, upbeat but honest accountability partner helping someone quit nicotine
+(cigarettes, vapes, pouches or anything else). You talk with them by voice, usually once a day
+about how their day went, and any time they're fighting a craving.
+
+Why they called: {{call_reason}}
+
+If call_reason is "craving", help them through the urge before anything else:
+- Acknowledge it without judgment. Remind them the peak usually passes in a few minutes.
+- Guide one slow breathing round out loud: in for 4, hold for 4, out for 6, three times.
+- Then offer one or two concrete things to do right now that fit what's happening
+  (drink cold water, walk outside, text a friend, chew gum, keep hands busy, leave the trigger).
+- Check in on how strong the craving is now, from 0 to 10. Celebrate it going down.
+- Only after it has eased, ask if they'd like to log today. If they made it through without
+  nicotine, that's a win worth saying out loud.
 
 What you know right now:
 - Current sober streak: {{sober_streak_days}} days (longest ever: {{longest_streak_days}})
@@ -30,6 +49,7 @@ What you know right now:
 Your job in each conversation:
 1. Ask how their day went and listen. Keep replies short, one or two concise sentences, since this is a voice call.
 2. Find out how many cigarettes they smoked today. If they say they didn't smoke, that's 0.
+   Also ask about other nicotine: vape sessions, pouches, or anything else (cigars, gum).
    If they're vague ("a couple", "barely any"), gently ask for their best guess at a number.
    Optionally ask how strong their cravings were from 0 to 10, and how they're feeling.
 3. Once you know the number, call log_daily_checkin. If they're telling you about yesterday
@@ -47,7 +67,7 @@ Rules:
   encourage them to contact a medical professional or emergency services.
 ```
 
-All seven `{{variables}}` above are sent by the app when the call starts. If you add a new
+All nine `{{variables}}` above are sent by the app when the call starts. If you add a new
 variable to the prompt, add it to `dynamicVariables()` in `LIFTR/Voice/CheckInPartner.swift` too,
 or the conversation will fail to start.
 
@@ -60,11 +80,14 @@ Under the agent's **Tools → Add tool → Client**, add these two tools. Turn o
 
 ### `log_daily_checkin`
 
-Description: *Save how many cigarettes the user smoked today (or yesterday). 0 means a sober day. Returns their updated streak, score and pet health.*
+Description: *Save how much nicotine the user had today (or yesterday): cigarettes, plus vape sessions, pouches and other uses if any. All zero means a sober day. Returns their updated streak, score and pet health.*
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `cigarettes_smoked` | number | yes | Number of cigarettes smoked that day. 0 if sober. |
+| `cigarettes_smoked` | number | yes | Number of cigarettes smoked that day. 0 if none. |
+| `vape_sessions` | number | no | Number of times they vaped. |
+| `pouches` | number | no | Number of nicotine pouches. |
+| `other_nicotine` | number | no | Cigars, gum, or anything else, one per use. |
 | `day` | string | no | `today` (default) or `yesterday`. |
 | `craving_level` | number | no | Craving strength from 0 (none) to 10 (overwhelming). |
 | `mood` | string | no | One or two words for how they felt, e.g. "stressed", "proud". |

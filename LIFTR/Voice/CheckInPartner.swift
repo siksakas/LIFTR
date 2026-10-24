@@ -68,7 +68,13 @@ final class CheckInPartner {
         self.store = store
     }
 
-    func start() async {
+    /// Why the user started the call. Sent to the agent as {{call_reason}} and picks the opening line.
+    enum CallReason: String {
+        case checkIn = "check_in"
+        case craving
+    }
+
+    func start(reason: CallReason = .checkIn) async {
         guard !status.isLive else { return }
         guard let settings = ElevenLabsSettings.load() else {
             status = .failed("Add your agent ID to ElevenLabs.plist to start talking.")
@@ -83,7 +89,7 @@ final class CheckInPartner {
         attempt += 1
         let thisAttempt = attempt
 
-        let config = ConversationConfig(dynamicVariables: dynamicVariables())
+        let config = ConversationConfig(dynamicVariables: dynamicVariables(reason: reason))
         do {
             let conversation: Conversation
             if let tokenURL = settings.conversationTokenURL {
@@ -201,9 +207,17 @@ final class CheckInPartner {
 
     /// Values the agent's prompt can reference as {{variable_name}}. Every variable used in
     /// the agent's prompt or first message must be sent here, or the conversation won't start.
-    private func dynamicVariables() -> [String: String] {
+    private func dynamicVariables(reason: CallReason) -> [String: String] {
         let progress = store.progress
+        let opening = switch reason {
+        case .checkIn:
+            "Hey! Good to hear from you. \(Pet.name) is feeling \(progress.petMood.rawValue) today. How did your day go?"
+        case .craving:
+            "I'm here. Cravings feel huge, but they usually pass within a few minutes. Let's ride this one out together. What's going on right now?"
+        }
         return [
+            "call_reason": reason.rawValue,
+            "opening_line": opening,
             "sober_streak_days": String(progress.currentStreak),
             "longest_streak_days": String(progress.longestStreak),
             "logged_today": progress.loggedToday ? "yes" : "no",

@@ -44,15 +44,23 @@ enum PartnerTools {
         default: return error("day must be \"today\" or \"yesterday\".")
         }
 
+        // Optional, so agents set up before these existed keep working. Missing means "keep what was saved".
+        let vape = int(parameters["vape_sessions"]).map { max($0, 0) }
+        let pouches = int(parameters["pouches"]).map { max($0, 0) }
+        let other = int(parameters["other_nicotine"]).map { max($0, 0) }
         let craving = int(parameters["craving_level"]).map { min(max($0, 0), 10) }
         let mood = nonEmpty(parameters["mood"])
         let notes = nonEmpty(parameters["notes"])
 
         let scoreBefore = store.progress.score
+        let entry: DailyLog
         do {
-            try store.record(
+            entry = try store.record(
                 date: date,
                 cigarettesSmoked: cigarettes,
+                vapeSessions: vape,
+                pouches: pouches,
+                otherUses: other,
                 cravingLevel: craving,
                 mood: mood,
                 note: notes,
@@ -66,13 +74,14 @@ enum PartnerTools {
         report.status = "logged"
         report.loggedDay = dayName
         report.loggedCigarettes = cigarettes
+        report.loggedSummary = entry.summary
         report.scoreChange = store.progress.score - scoreBefore
 
         var outcome = encode(report)
         let when = dayName == "today" ? "Today" : "Yesterday"
-        outcome.loggedSummary = cigarettes == 0
+        outcome.loggedSummary = entry.isSober
             ? "\(when) logged as sober"
-            : "\(when) logged: \(cigarettes) cigarette\(cigarettes == 1 ? "" : "s")"
+            : "\(when) logged: \(entry.summary)"
         return outcome
     }
 
@@ -112,6 +121,8 @@ struct ProgressReport: Encodable {
     var status = "ok"
     var loggedDay: String?
     var loggedCigarettes: Int?
+    /// Everything logged that day, for example "2 cigarettes, 1 vape session".
+    var loggedSummary: String?
     var scoreChange: Int?
     var soberStreakDays: Int
     var longestStreakDays: Int

@@ -7,6 +7,7 @@ const app = express();
 app.use(express.json({ limit: "100kb" }));
 
 const PRODUCTS = ["cigarette", "vape", "pouch", "cigar", "gum", "other"];
+const UNITS = { cigarette: "cigarette", vape: "session", pouch: "pouch", cigar: "cigar", gum: "piece", other: "use" };
 
 // Optional shared token. It only keeps out casual callers, since anything in the app can be extracted.
 app.use((req, res, next) => {
@@ -29,31 +30,41 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 /**
  * Save one day's check-in. Same fields as DailyLog in the app.
- * Body: { dayKey: "2026-10-24", quantity: 3, productType?: "cigarette", unit?, cravingLevel?, mood?, note?, source? }
+ * Body: { dayKey: "2026-10-24", products: { cigarette: 3, vape: 1 }, cravingLevel?, mood?, note?, source? }
+ * The older single-product form { dayKey, quantity, productType? } still works.
  * Sending the same day and product again overwrites it.
  */
 app.post("/logs", async (req, res, next) => {
   const uid = userId(req, res);
   if (!uid) return;
   const b = req.body ?? {};
-  const quantity = Number(b.quantity ?? b.cigarettesSmoked);
-  const productType = b.productType ?? "cigarette";
-
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.dayKey ?? "")) return res.status(400).json({ error: "dayKey must look like 2026-10-24." });
-  if (!Number.isFinite(quantity) || quantity < 0) return res.status(400).json({ error: "quantity must be 0 or more." });
-  if (!PRODUCTS.includes(productType)) return res.status(400).json({ error: `productType must be one of ${PRODUCTS.join(", ")}.` });
+
+  const counts =
+    b.products && typeof b.products === "object"
+      ? b.products
+      : { [b.productType ?? "cigarette"]: b.quantity ?? b.cigarettesSmoked };
+  const products = [];
+  for (const [productType, raw] of Object.entries(counts)) {
+    const quantity = Number(raw);
+    if (!PRODUCTS.includes(productType)) return res.status(400).json({ error: `Product types must be one of ${PRODUCTS.join(", ")}.` });
+    if (!Number.isFinite(quantity) || quantity < 0) return res.status(400).json({ error: `${productType} must be 0 or more.` });
+    products.push({ productType, quantity, unit: b.products ? UNITS[productType] : b.unit ?? UNITS[productType] });
+  }
+  if (!products.length) return res.status(400).json({ error: "Send at least one product count." });
 
   try {
-    await upsertDailyLog(uid, {
-      dayKey: b.dayKey,
-      productType,
-      quantity,
-      unit: b.unit ?? productType,
-      cravingLevel: Number.isFinite(b.cravingLevel) ? Math.min(Math.max(Math.round(b.cravingLevel), 0), 10) : null,
-      mood: b.mood || null,
-      note: b.note || null,
-      source: b.source === "voice" ? "voice" : "manual",
-    });
+    await upsertDailyLog(
+      uid,
+      {
+        dayKey: b.dayKey,
+        cravingLevel: Number.isFinite(b.cravingLevel) ? Math.min(Math.max(Math.round(b.cravingLevel), 0), 10) : null,
+        mood: b.mood || null,
+        note: b.note || null,
+        source: b.source === "voice" ? "voice" : "manual",
+      },
+      products
+    );
     res.json({ ok: true });
   } catch (err) {
     next(err);

@@ -39,7 +39,7 @@ Then try it from another terminal:
 curl localhost:8080/health
 
 curl -X POST localhost:8080/logs -H "Content-Type: application/json" -H "X-User-Id: demo-user-0001" \
-  -d '{"dayKey":"2026-10-24","quantity":3,"cravingLevel":6,"mood":"stressed"}'
+  -d '{"dayKey":"2026-10-24","products":{"cigarette":3,"vape":1},"cravingLevel":6,"mood":"stressed"}'
 
 curl localhost:8080/stats -H "X-User-Id: demo-user-0001"
 
@@ -65,7 +65,7 @@ Settings → Wi-Fi → Details, for example `http://192.168.1.20:8080`), or the 
 | Route | What it does |
 |---|---|
 | `GET /health` | Returns `{"ok":true}`. No headers needed. |
-| `POST /logs` | Saves a day. Body: `dayKey` (`yyyy-MM-dd`), `quantity`, and optionally `productType` (cigarette, vape, pouch, cigar, gum, other; default cigarette), `unit`, `cravingLevel` (0 to 10), `mood`, `note`, `source` (`voice` or `manual`). Same day and product again overwrites it. |
+| `POST /logs` | Saves a day, one Snowflake row per product. Body: `dayKey` (`yyyy-MM-dd`), `products` (counts by type: cigarette, vape, pouch, cigar, gum, other), and optionally `cravingLevel` (0 to 10), `mood`, `note`, `source` (`voice` or `manual`). The older `quantity` + `productType` form still works. Same day and product again overwrites it. |
 | `GET /stats` | Last 60 days of daily totals plus a summary: averages for the last 7 and 30 days, change against the 30 days before, nicotine-free days, heaviest weekday, cravings and moods. |
 | `POST /coach` | Body: `messages` (the chat so far) and optionally `appProgress` (the score and streak the app already computed). Returns `{"reply": "..."}`. |
 | `GET /elevenlabs/token` | Returns `{"token": "..."}` for the app's `ConversationTokenURL`. |
@@ -76,9 +76,19 @@ an `X-App-Token` header with that value.
 
 ## Deploy on DigitalOcean App Platform
 
-1. Create App → GitHub → this repo, and set the **source directory** to `backend`.
-2. It detects Node and runs `npm start`. Set the HTTP port to 8080.
-3. Add every variable from `.env.example` under the app's environment variables and tick **Encrypt**
-   for the secrets.
-4. Once it's live, put `https://<your-app>.ondigitalocean.app/elevenlabs/token` into `ConversationTokenURL`
-   in `LIFTR/ElevenLabs.plist`, and turn on authentication on the ElevenLabs agent.
+`.do/app.yaml` at the repo root describes the app, so most settings are filled in for you.
+
+1. In DigitalOcean, go to **Apps → Create App**, connect GitHub, and choose **siksakas/LIFTR**.
+   If it offers to use the app spec it found, accept it. Otherwise pick **Import from App Spec** and
+   upload `.do/app.yaml`. (With the CLI: `doctl apps create --spec .do/app.yaml`.)
+2. Open the app's **Settings → Environment Variables** and paste the values for the secrets:
+   `SNOWFLAKE_PAT`, `DO_MODEL_ACCESS_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`. Leave
+   `APP_TOKEN` empty unless you also put it in `LIFTR/Backend.plist`.
+3. Deploy. When it's live, `https://<your-app>.ondigitalocean.app/health` returns `{"ok":true}`.
+   Every push to `main` redeploys it.
+4. In the app's **Coach** tab (or `LIFTR/Backend.plist`), use that https address instead of localhost.
+   It then works on a real iPhone anywhere, not only next to your Mac.
+5. Optional: put `https://<your-app>.ondigitalocean.app/elevenlabs/token` into `ConversationTokenURL`
+   in `LIFTR/ElevenLabs.plist` and turn on authentication on the ElevenLabs agent.
+
+The smallest instance costs a few dollars a month. Destroy the app after the hackathon if you don't need it.

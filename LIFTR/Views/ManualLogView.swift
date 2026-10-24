@@ -12,6 +12,9 @@ struct ManualLogView: View {
 
     @State private var isYesterday = false
     @State private var cigarettes = 0
+    @State private var vapeSessions = 0
+    @State private var pouches = 0
+    @State private var otherUses = 0
     @State private var cravingLevel = 0.0
     @State private var note = ""
     @State private var errorMessage: String?
@@ -26,9 +29,14 @@ struct ManualLogView: View {
                 .pickerStyle(.segmented)
 
                 Section {
-                    Stepper(value: $cigarettes, in: 0...100) {
-                        Text(cigarettes == 0 ? "Sober, no cigarettes" : "\(cigarettes) cigarette\(cigarettes == 1 ? "" : "s")")
-                    }
+                    CountRow(title: "Cigarettes", count: $cigarettes)
+                    CountRow(title: "Vape sessions", count: $vapeSessions)
+                    CountRow(title: "Pouches", count: $pouches)
+                    CountRow(title: "Other (cigars, gum…)", count: $otherUses)
+                } header: {
+                    Text("Nicotine")
+                } footer: {
+                    Text(cigarettes + vapeSessions + pouches + otherUses == 0 ? "All zero means a sober day." : "")
                 }
 
                 Section("Cravings") {
@@ -66,6 +74,9 @@ struct ManualLogView: View {
     private func loadExisting() {
         let existing = store.log(for: date)
         cigarettes = existing?.cigarettesSmoked ?? 0
+        vapeSessions = existing?.vapeSessions ?? 0
+        pouches = existing?.pouches ?? 0
+        otherUses = existing?.otherUses ?? 0
         cravingLevel = Double(existing?.cravingLevel ?? 0)
         note = existing?.note ?? ""
     }
@@ -75,6 +86,9 @@ struct ManualLogView: View {
             try store.record(
                 date: date,
                 cigarettesSmoked: cigarettes,
+                vapeSessions: vapeSessions,
+                pouches: pouches,
+                otherUses: otherUses,
                 cravingLevel: Int(cravingLevel),
                 note: note.trimmingCharacters(in: .whitespacesAndNewlines),
                 source: "manual"
@@ -82,6 +96,23 @@ struct ManualLogView: View {
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct CountRow: View {
+    var title: String
+    @Binding var count: Int
+
+    var body: some View {
+        Stepper(value: $count, in: 0...100) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(count)")
+                    .monospacedDigit()
+                    .foregroundStyle(count == 0 ? Color.secondary : Color.primary)
+            }
         }
     }
 }
