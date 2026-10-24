@@ -9,7 +9,7 @@ import SwiftUI
 /// Home screen: pet, streak, score, and today's check-in status.
 struct TodayView: View {
     @Environment(CheckInStore.self) private var store
-    @Query(sort: \DailyLog.day, order: .reverse) private var logs: [DailyLog]
+    @Query(sort: \DailyLog.dayKey, order: .reverse) private var logs: [DailyLog]
     @State private var showingManualLog = false
     var onTalk: () -> Void
 

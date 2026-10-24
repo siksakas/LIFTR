@@ -19,14 +19,15 @@ final class CheckInStore {
     }
 
     func log(for date: Date) -> DailyLog? {
-        let day = Calendar.current.startOfDay(for: date)
-        var descriptor = FetchDescriptor<DailyLog>(predicate: #Predicate { $0.day == day })
+        let key = DailyLog.key(for: date)
+        var descriptor = FetchDescriptor<DailyLog>(predicate: #Predicate { $0.dayKey == key })
         descriptor.fetchLimit = 1
         return try? context.fetch(descriptor).first
     }
 
     /// Creates or replaces the log for `date`. Logging the same day twice overwrites it,
     /// so a user can correct themselves ("actually it was two, not one").
+    /// For an existing day, a `nil` detail keeps what was saved and an empty `note` clears it.
     @discardableResult
     func record(
         date: Date = .now,
@@ -41,7 +42,7 @@ final class CheckInStore {
             existing.cigarettesSmoked = max(0, cigarettesSmoked)
             existing.cravingLevel = cravingLevel ?? existing.cravingLevel
             existing.mood = mood ?? existing.mood
-            existing.note = note ?? existing.note
+            existing.note = note.map { $0.isEmpty ? nil : $0 } ?? existing.note
             existing.source = source
             existing.updatedAt = .now
             entry = existing
@@ -51,7 +52,7 @@ final class CheckInStore {
                 cigarettesSmoked: cigarettesSmoked,
                 cravingLevel: cravingLevel,
                 mood: mood,
-                note: note,
+                note: note?.isEmpty == true ? nil : note,
                 source: source
             )
             context.insert(entry)

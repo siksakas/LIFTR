@@ -72,12 +72,11 @@ struct ManualLogView: View {
 
     private func save() {
         do {
-            let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
             try store.record(
                 date: date,
                 cigarettesSmoked: cigarettes,
                 cravingLevel: Int(cravingLevel),
-                note: trimmed.isEmpty ? nil : trimmed,
+                note: note.trimmingCharacters(in: .whitespacesAndNewlines),
                 source: "manual"
             )
             dismiss()

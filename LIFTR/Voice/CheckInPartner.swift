@@ -44,6 +44,9 @@ final class CheckInPartner {
     @ObservationIgnored private var conversation: Conversation?
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
     @ObservationIgnored private var handledToolCalls: Set<String> = []
+    /// Bumped by every start and end, so a connection that finishes after the user
+    /// already tapped End (or started again) can tell it's stale and hang up.
+    @ObservationIgnored private var attempt = 0
 
     init(store: CheckInStore) {
         self.store = store
@@ -61,6 +64,8 @@ final class CheckInPartner {
         handledToolCalls = []
         status = .connecting
         store.refresh()
+        attempt += 1
+        let thisAttempt = attempt
 
         let config = ConversationConfig(dynamicVariables: dynamicVariables())
         do {
@@ -73,14 +78,19 @@ final class CheckInPartner {
             } else {
                 conversation = try await ElevenLabs.startConversation(agentId: settings.agentID, config: config)
             }
+            guard thisAttempt == attempt else {
+                await conversation.endConversation()
+                return
+            }
             self.conversation = conversation
             observe(conversation)
         } catch {
-            status = .failed(error.localizedDescription)
+            if thisAttempt == attempt { status = .failed(error.localizedDescription) }
         }
     }
 
     func end() async {
+        attempt += 1
         await conversation?.endConversation()
         stopObserving()
         conversation = nil
