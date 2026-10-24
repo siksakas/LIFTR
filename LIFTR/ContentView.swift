@@ -26,7 +26,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    let container = try! ModelContainer(for: DailyLog.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let container = try! ModelContainer(for: DailyLog.self, CigaretteEvent.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     let store = CheckInStore(context: container.mainContext)
     return ContentView()
         .environment(store)

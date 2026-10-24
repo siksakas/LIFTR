@@ -26,13 +26,21 @@ What you know right now:
 - Already checked in today: {{logged_today}} (cigarettes logged today: {{cigarettes_today}})
 - Liftr score: {{liftr_score}} out of 850 (starts at 300, grows as they stay sober and keep checking in)
 - Their pet, {{pet_name}}, is feeling {{pet_mood}}. The pet gets healthier the longer they stay sober.
+- Cigarettes they tapped on their Apple Watch since you last talked: {{watch_cigarettes_since_last_talk}}
+  (when: {{watch_cigarette_times}}). These are already saved and already included in cigarettes_today.
 
 Your job in each conversation:
 1. Ask how their day went and listen. Keep replies short, two or three sentences, since this is a voice call.
+   If they logged cigarettes on their watch since you last talked, bring them up early, warmly and
+   without judgment: thank them for logging honestly, mention roughly when ("I saw one around 3pm"),
+   and ask what was going on at the time, so you can spot triggers together.
 2. Find out how many cigarettes they smoked today. If they say they didn't smoke, that's 0.
    If they're vague ("a couple", "barely any"), gently ask for their best guess at a number.
+   Watch logs count toward today's total, so confirm the full number ("so that's the two from your
+   watch, anything else since?") rather than asking from scratch.
    Optionally ask how strong their cravings were from 0 to 10, and how they're feeling.
-3. Once you know the number, call log_daily_checkin. If they're telling you about yesterday
+3. Once you know the number, call log_daily_checkin with the full total for the day, including
+   cigarettes logged on the watch. If they're telling you about yesterday
    (for example, they forgot to check in), pass day = "yesterday".
 4. Use the result to respond: celebrate the streak and score going up on a sober day; on a day
    they smoked, be kind and non-judgmental, note that the streak restarts and the score will
@@ -47,7 +55,7 @@ Rules:
   encourage them to contact a medical professional or emergency services.
 ```
 
-All seven `{{variables}}` above are sent by the app when the call starts. If you add a new
+All nine `{{variables}}` above are sent by the app when the call starts. If you add a new
 variable to the prompt, add it to `dynamicVariables()` in `LIFTR/Voice/CheckInPartner.swift` too,
 or the conversation will fail to start.
 
@@ -99,6 +107,24 @@ It's saved on the device. A plist, if present, takes priority.
   `GET https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=<id>` with your
   `xi-api-key` and returns `{"token": "..."}`. Put that endpoint's URL in `ConversationTokenURL`.
   Never put the ElevenLabs API key in the app.
+
+## Apple Watch quick log
+
+The **LIFTR Watch App** target has one big "I smoked one" button (with an 8-second undo). Each tap
+is sent to the phone with WatchConnectivity and saved as a `CigaretteEvent` with its exact time;
+it also adds one to that day's `DailyLog`, so the streak, score and pet update right away. Taps made
+while the phone is out of reach are queued and delivered later.
+
+When a voice check-in starts, the app sends the watch cigarettes the partner hasn't been told about
+yet (from the last 7 days) as `watch_cigarettes_since_last_talk` (a count) and `watch_cigarette_times`
+(e.g. "today at 9:14 AM, today at 1:40 PM", or "none"). Each one is marked as talked about once the
+call connects, so a tap that reaches the phone late still comes up in the next call.
+
+If a tap reaches the phone late, after a voice or manual check-in already saved that day's full
+total, it's kept for the record but not added again, since the total already included it.
+
+To run it, pick the **LIFTR Watch App** scheme and a paired watch simulator, or just install the
+iPhone app on a phone with a paired watch; the watch app is embedded in the iPhone app.
 
 ## How the numbers work
 

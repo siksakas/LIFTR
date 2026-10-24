@@ -17,9 +17,13 @@ final class DailyLog {
     var cravingLevel: Int?
     var mood: String?
     var note: String?
-    /// "voice" when the ElevenLabs partner logged it, "manual" otherwise.
+    /// "voice" when the ElevenLabs partner logged it, "watch" when it only holds cigarettes
+    /// tapped on the watch, "manual" otherwise.
     var source: String
     var updatedAt: Date
+    /// When someone last stated the full day's total (voice or manual check-in). A watch tap
+    /// from before this that arrives late is already included in that total.
+    var totalRecordedAt: Date?
 
     init(
         day: Date,
@@ -44,8 +48,7 @@ final class DailyLog {
     var day: Date { Self.date(forKey: dayKey) ?? updatedAt }
 
     static func key(for date: Date, calendar: Calendar = .current) -> String {
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04ld-%02ld-%02ld", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        WatchSync.dayKey(for: date, calendar: calendar)
     }
 
     static func date(forKey key: String, calendar: Calendar = .current) -> Date? {
