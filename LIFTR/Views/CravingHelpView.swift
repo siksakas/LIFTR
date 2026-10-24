@@ -289,7 +289,7 @@ struct CravingHelpView: View {
                 Text("Talk to Tuk")
                     .font(.figtree(16, .heavy, relativeTo: .headline))
                     .foregroundStyle(Palette.ink)
-                Text("Say it out loud, or type it")
+                Text(CoachView.allowsTyping ? "Say it out loud, or type it" : "Say it out loud")
                     .font(.figtree(13, relativeTo: .footnote))
                     .foregroundStyle(Palette.inkSecondary)
             }
@@ -299,9 +299,11 @@ struct CravingHelpView: View {
                     noteCraving()
                     router.openCoach(voice: true)
                 }
-                roundButton("bubble.left", label: "Chat with Tuk") {
-                    noteCraving()
-                    router.openCoach(voice: false)
+                if CoachView.allowsTyping {
+                    roundButton("bubble.left", label: "Chat with Tuk") {
+                        noteCraving()
+                        router.openCoach(voice: false)
+                    }
                 }
             }
         }

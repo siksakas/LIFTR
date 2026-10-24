@@ -9,13 +9,16 @@ import SwiftUI
 struct CoachView: View {
     enum Mode { case text, voice }
 
+    /// Typing is switched off for now, so Coach is voice only. Set to true to bring the Text tab back.
+    static let allowsTyping = false
+
     @Environment(CheckInStore.self) private var store
     @Environment(CheckInPartner.self) private var partner
     @Environment(Reminders.self) private var reminders
     @Environment(AppRouter.self) private var router
 
     @State private var thread = CoachThread()
-    @State private var mode = Mode.text
+    @State private var mode = CoachView.allowsTyping ? Mode.text : Mode.voice
     @State private var draft = ""
     /// Lines from the current or last voice call that aren't in the thread yet.
     @State private var showsCallLines = false
@@ -80,14 +83,16 @@ struct CoachView: View {
                     .foregroundStyle(Palette.inkSecondary)
             }
             Spacer(minLength: 0)
-            HStack(spacing: 0) {
-                segment("Text", isOn: mode == .text) { switchMode(.text) }
-                segment("Voice", isOn: mode == .voice) { switchMode(.voice) }
+            if Self.allowsTyping {
+                HStack(spacing: 0) {
+                    segment("Text", isOn: mode == .text) { switchMode(.text) }
+                    segment("Voice", isOn: mode == .voice) { switchMode(.voice) }
+                }
+                .padding(3)
+                .background(Palette.sandDeep, in: Capsule())
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Type or talk")
             }
-            .padding(3)
-            .background(Palette.sandDeep, in: Capsule())
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Type or talk")
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
@@ -129,8 +134,10 @@ struct CoachView: View {
         }
         if router.coachPrefersText {
             router.coachPrefersText = false
-            switchMode(.text)
-            isTyping = true
+            if Self.allowsTyping {
+                switchMode(.text)
+                isTyping = true
+            }
         }
     }
 
