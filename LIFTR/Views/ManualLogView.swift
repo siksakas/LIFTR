@@ -5,7 +5,8 @@
 
 import SwiftUI
 
-/// Fallback for logging a day without talking to the voice partner.
+/// Sets a whole day's cigarette count at once, for catching up on yesterday or correcting a
+/// day. One-tap logging lives on the Log screen.
 struct ManualLogView: View {
     @Environment(CheckInStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -45,7 +46,9 @@ struct ManualLogView: View {
                     Text(errorMessage).foregroundStyle(.red)
                 }
             }
-            .navigationTitle("Check in")
+            .scrollContentBackground(.hidden)
+            .background(Palette.background)
+            .navigationTitle("Log a day")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

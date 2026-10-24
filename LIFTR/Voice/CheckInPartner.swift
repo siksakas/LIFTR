@@ -209,8 +209,10 @@ final class CheckInPartner {
             "logged_today": progress.loggedToday ? "yes" : "no",
             "cigarettes_today": progress.cigarettesToday.map(String.init) ?? "not logged yet",
             "liftr_score": String(progress.score),
-            "pet_name": Pet.name,
-            "pet_mood": progress.petMood.rawValue,
+            "tuk_stage": progress.stage.title,
+            // Older agent prompts call Tuk "the pet"; these keep their greeting working.
+            "pet_name": TukStage.name,
+            "pet_mood": progress.stage.mood,
         ]
     }
 

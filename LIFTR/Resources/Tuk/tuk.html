@@ -1,0 +1,456 @@
+<!doctype html>
+<!--
+  Tuk the tortoise, the animated rig from the LIFTR design prototype.
+  Loaded by TukView in a transparent WKWebView. Parameters (window.TUK_PARAMS or the query string):
+    stage   1...5                      Tuk's stage (default 2)
+    mode    loop | still | breathe | head
+    scene   home                       draws Tuk's little world from the Home screen behind him
+    static  1                          freezes the first frame (used to render the PNG fallbacks)
+  window.tuk.set({stage, mode}) changes the stage in place, so colours and poses ease across.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+@font-face{font-family:'Patrick Hand';src:url("PatrickHand-Regular.ttf") format('truetype')}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#tuk-host{position:absolute;left:0;top:0;width:100%;height:100%}
+#scene{position:absolute;left:0;top:0;width:100%;height:100%;display:none}
+.has-scene #scene{display:block}
+.lf-sky,.lf-hill,.lf-ground,.lf-tree{transition:fill 1.4s ease}
+.lf-fade{transition:opacity 1.1s ease}
+.lf-cloud-a{animation:lf-drift 46s ease-in-out infinite alternate}
+.lf-cloud-b{animation:lf-drift 60s ease-in-out -20s infinite alternate-reverse}
+@keyframes lf-drift{from{transform:translateX(-14px)}to{transform:translateX(18px)}}
+.is-static *{animation-play-state:paused!important}
+@media (prefers-reduced-motion: reduce){.tuk *,#scene *{animation:none!important}}
+/* LIFTR prototype — shared motion + Tuk rig. Layout and colour live inline in each artboard. */
+
+/* ===== Tuk rig ===== */
+.tuk{position:relative;display:block;will-change:transform}
+.tuk svg{display:block;width:100%;height:100%}
+.tuk .t-bob{transform-origin:158px 290px}
+.tuk .t-shadow{transform-origin:158px 289px}
+.tuk .t-head,.tuk .t-head-a{transform-origin:150px 140px}
+.tuk .t-armN-u,.tuk .t-armN-u-a{transform-origin:106px 152px}
+.tuk .t-armN-f,.tuk .t-armN-f-a{transform-origin:102px 176px}
+.tuk .t-armF-u,.tuk .t-armF-u-a{transform-origin:184px 150px}
+.tuk .t-armF-f,.tuk .t-armF-f-a{transform-origin:186px 174px}
+.tuk .t-eyeF{transform-origin:100px 95px}
+.tuk .t-eyeN{transform-origin:123px 92px}
+.tuk .t-glow{transform-origin:125px 206px}
+.tuk .t-puff{transform-origin:80px 114px}
+.tuk .t-sprout,.tuk .t-sprout-a{transform-origin:196px 93px}
+.tuk .t-g1{transform-origin:176px 97px}
+.tuk .t-g2{transform-origin:214px 96px}
+.tuk .t-g3{transform-origin:236px 112px}
+.tuk .t-g4{transform-origin:190px 100px}
+.tuk .t-moss{transform-origin:194px 104px}
+.tuk .t-wisp{stroke-dasharray:72;stroke-dashoffset:72}
+
+/* gentle stage-to-stage transitions: smoke fades, eyes open, colour warms, sprouts grow */
+.tuk .t-tr{transition:transform 1.1s cubic-bezier(.45,.05,.25,1)}
+.tuk .t-fill{transition:fill 1.4s ease}
+.tuk .t-fade{transition:opacity 1s ease}
+.tuk .t-grow{transition:transform 1.2s cubic-bezier(.34,1.45,.64,1),opacity .7s ease}
+.tuk .t-g2{transition-delay:.15s}.tuk .t-g3{transition-delay:.3s}.tuk .t-g4{transition-delay:.45s}
+
+/* Stage 1 · smoking loop (5s) */
+.tuk[data-stage="1"] .t-bob{animation:t1-bob 5s ease-in-out infinite}
+.tuk[data-stage="1"] .t-head-a{animation:t1-head 5s ease-in-out infinite}
+.tuk[data-stage="1"] .t-armN-u-a{animation:t1-nu 5s ease-in-out infinite}
+.tuk[data-stage="1"] .t-armN-f-a{animation:t1-nf 5s ease-in-out infinite}
+.tuk[data-stage="1"] .t-armF-f-a{animation:t1-ff 5s ease-in-out infinite}
+.tuk[data-stage="1"] .t-cig-a{animation:t1-cig 5s linear infinite}
+.tuk[data-stage="1"] .t-glow{animation:t1-glow 5s ease-in-out infinite}
+.tuk[data-stage="1"] .t-wisp{animation:t1-wisp 5s ease-out infinite}
+.tuk[data-stage="1"] .t-puff{animation:t1-puff 5s ease-out infinite}
+.tuk[data-stage="1"] .t-mo{animation:t1-mo 5s linear infinite}
+.tuk[data-stage="1"] .t-ml{animation:t1-ml 5s linear infinite}
+.tuk[data-stage="1"] .t-eyeF,.tuk[data-stage="1"] .t-eyeN{animation:t1-eye 5s ease-in-out infinite}
+.tuk .t-haze1{animation:t-haze 7s ease-in-out infinite}
+.tuk .t-haze2{animation:t-haze 9s ease-in-out -3s infinite reverse}
+.tuk .t-haze3{animation:t-haze 8s ease-in-out -5s infinite}
+@keyframes t1-bob{0%,15%{transform:translate(0,0) rotate(0deg) scale(1,1)}20%{transform:translate(-2px,1px) rotate(-1.4deg) scale(1,1)}26%{transform:translate(2px,0) rotate(1.1deg) scale(1,1)}32%{transform:translate(0,0) rotate(0deg) scale(1,1)}50%{transform:translate(0,0) rotate(0deg) scale(1,1.012)}80%{transform:translate(0,0) rotate(0deg) scale(1,.994)}100%{transform:translate(0,0) rotate(0deg) scale(1,1)}}
+@keyframes t1-head{0%,34%{transform:translateY(0) rotate(0deg)}46%,64%{transform:translateY(1px) rotate(-4deg)}72%,86%{transform:translateY(-1px) rotate(3deg)}97%,100%{transform:translateY(0) rotate(0deg)}}
+@keyframes t1-nu{0%,34%{transform:rotate(0deg)}47%,66%{transform:rotate(95deg)}71%,86%{transform:rotate(84deg)}98%,100%{transform:rotate(0deg)}}
+@keyframes t1-nf{0%,34%{transform:rotate(0deg)}47%,66%{transform:rotate(86deg)}71%,86%{transform:rotate(74deg)}98%,100%{transform:rotate(0deg)}}
+@keyframes t1-ff{0%,16%{transform:rotate(0deg)}21%{transform:rotate(-6deg)}26%{transform:rotate(3deg)}31%,100%{transform:rotate(0deg)}}
+@keyframes t1-cig{0%,41%{opacity:0}45%,90%{opacity:1}95%,100%{opacity:0}}
+@keyframes t1-glow{0%,49%{opacity:.4;transform:scale(.8)}55%,63%{opacity:1;transform:scale(1.3)}70%,100%{opacity:.5;transform:scale(.9)}}
+@keyframes t1-wisp{0%,52%{opacity:0;transform:translateY(6px);stroke-dashoffset:72}58%{opacity:.9}74%{opacity:.6;transform:translateY(-8px);stroke-dashoffset:0}86%,100%{opacity:0;transform:translateY(-18px);stroke-dashoffset:0}}
+@keyframes t1-puff{0%,68%{opacity:0;transform:translate(0,0) scale(.2)}72%{opacity:.95;transform:translate(-3px,-1px) scale(.5)}80%{opacity:.95;transform:translate(-14px,-6px) scale(.92)}90%{opacity:.7;transform:translate(-32px,-16px) scale(1.12)}100%{opacity:0;transform:translate(-50px,-28px) scale(1.28)}}
+@keyframes t1-mo{0%,69%{opacity:0}71%,84%{opacity:1}88%,100%{opacity:0}}
+@keyframes t1-ml{0%,69%{opacity:1}71%,84%{opacity:0}88%,100%{opacity:1}}
+@keyframes t1-eye{0%,8%{transform:scaleY(1)}10%{transform:scaleY(.12)}12%,51%{transform:scaleY(1)}55%,64%{transform:scaleY(.12)}68%,100%{transform:scaleY(1)}}
+@keyframes t-haze{0%,100%{transform:translate(0,0)}50%{transform:translate(7px,-5px)}}
+
+/* Stage 2 · cutting down (warm tea) */
+.tuk[data-stage="2"] .t-bob{animation:t-breath 6s ease-in-out infinite}
+.tuk[data-stage="2"] .t-steam1{animation:t-steam 2.8s ease-out infinite}
+.tuk[data-stage="2"] .t-steam2{animation:t-steam 2.8s ease-out 1.4s infinite}
+.tuk[data-stage="2"] .t-eyeF,.tuk[data-stage="2"] .t-eyeN{animation:t-blink 6s ease-in-out 1s infinite}
+@keyframes t-breath{0%,100%{transform:translate(0,0) rotate(0deg) scale(1,1)}50%{transform:translate(0,0) rotate(0deg) scale(1,1.012)}}
+@keyframes t-steam{0%{opacity:0;transform:translateY(4px)}30%{opacity:.85}100%{opacity:0;transform:translateY(-12px)}}
+@keyframes t-blink{0%,46%,54%,100%{transform:scaleY(1)}50%{transform:scaleY(.12)}}
+
+/* Stage 3 · recovering (a big stretch) */
+.tuk[data-stage="3"] .t-bob{animation:t3-bob 6s ease-in-out infinite}
+.tuk[data-stage="3"] .t-armN-u-a{animation:t3-nu 6s ease-in-out infinite}
+.tuk[data-stage="3"] .t-armN-f-a{animation:t3-nf 6s ease-in-out infinite}
+.tuk[data-stage="3"] .t-armF-u-a{animation:t3-fu 6s ease-in-out infinite}
+.tuk[data-stage="3"] .t-head-a{animation:t3-head 6s ease-in-out infinite}
+.tuk[data-stage="3"] .t-eyeF,.tuk[data-stage="3"] .t-eyeN{animation:t3-eye 6s ease-in-out infinite}
+@keyframes t3-bob{0%,22%{transform:translate(0,0) rotate(0deg) scale(1,1)}38%,54%{transform:translate(0,-3px) rotate(0deg) scale(.99,1.035)}70%,100%{transform:translate(0,0) rotate(0deg) scale(1,1)}}
+@keyframes t3-nu{0%,22%{transform:rotate(0deg)}38%,54%{transform:rotate(108deg)}70%,100%{transform:rotate(0deg)}}
+@keyframes t3-nf{0%,22%{transform:rotate(0deg)}38%,54%{transform:rotate(12deg)}70%,100%{transform:rotate(0deg)}}
+@keyframes t3-fu{0%,22%{transform:rotate(0deg)}38%,54%{transform:rotate(-132deg)}70%,100%{transform:rotate(0deg)}}
+@keyframes t3-head{0%,22%{transform:translateY(0) rotate(0deg)}38%,54%{transform:translateY(-2px) rotate(5deg)}70%,100%{transform:translateY(0) rotate(0deg)}}
+@keyframes t3-eye{0%,30%{transform:scaleY(1)}36%,56%{transform:scaleY(.12)}62%,84%{transform:scaleY(1)}87%{transform:scaleY(.12)}90%,100%{transform:scaleY(1)}}
+
+/* Stage 4 · healthy (first sprout) */
+.tuk[data-stage="4"] .t-bob{animation:t-breath 4.5s ease-in-out infinite}
+.tuk[data-stage="4"] .t-sprout-a,.tuk[data-stage="5"] .t-sprout-a{animation:t-sway 3.4s ease-in-out infinite}
+.tuk[data-stage="4"] .t-eyeF,.tuk[data-stage="4"] .t-eyeN{animation:t-blink 4.5s ease-in-out 2s infinite}
+@keyframes t-sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+
+/* Stage 5 · thriving (little hop + wave) */
+.tuk[data-stage="5"] .t-bob{animation:t5-hop 3.2s ease-in-out infinite}
+.tuk[data-stage="5"] .t-shadow{animation:t5-shadow 3.2s ease-in-out infinite}
+.tuk[data-stage="5"] .t-armN-f-a{animation:t5-wave .8s ease-in-out infinite alternate}
+.tuk[data-stage="5"] .t-eyeF,.tuk[data-stage="5"] .t-eyeN{animation:t-blink 3.2s ease-in-out 1.6s infinite}
+.tuk[data-stage="5"] .t-g1,.tuk[data-stage="5"] .t-g3{animation:t-nod 3.2s ease-in-out infinite}
+@keyframes t5-hop{0%,52%,100%{transform:translate(0,0) rotate(0deg) scale(1,1)}7%{transform:translate(0,1px) rotate(0deg) scale(1.035,.955)}17%{transform:translate(0,-15px) rotate(0deg) scale(.98,1.03)}27%{transform:translate(0,0) rotate(0deg) scale(1.03,.96)}36%{transform:translate(0,0) rotate(0deg) scale(1,1)}}
+@keyframes t5-shadow{0%,52%,100%{transform:scale(1);opacity:.1}17%{transform:scale(.78);opacity:.06}}
+@keyframes t5-wave{0%{transform:rotate(-26deg)}100%{transform:rotate(22deg)}}
+@keyframes t-nod{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+
+/* modes */
+.tuk[data-mode="still"] *,.tuk[data-mode="head"] *{animation:none!important}
+.tuk[data-mode="breathe"] .t-a{animation:none!important}
+.tuk[data-mode="breathe"] .t-bob{animation:tb-breathe 10s ease-in-out infinite!important}
+.tuk[data-mode="breathe"] .t-eyeF,.tuk[data-mode="breathe"] .t-eyeN{animation:tb-eye 10s ease-in-out infinite!important}
+@keyframes tb-breathe{0%{transform:translate(0,0) rotate(0deg) scale(1,1)}40%,50%{transform:translate(0,-2px) rotate(0deg) scale(1.045,1.06)}100%{transform:translate(0,0) rotate(0deg) scale(1,1)}}
+@keyframes tb-eye{0%,44%{transform:scaleY(1)}52%,96%{transform:scaleY(.12)}100%{transform:scaleY(1)}}
+
+/* storyboard freeze frames on the stage-1 timeline */
+.tuk[data-frame^="f"] *{animation-play-state:paused!important}
+.tuk[data-frame="f1"] .t-a{animation-delay:-.2s!important}
+.tuk[data-frame="f2"] .t-a{animation-delay:-1.12s!important}
+.tuk[data-frame="f3"] .t-a{animation-delay:-2.1s!important}
+.tuk[data-frame="f4"] .t-a{animation-delay:-2.9s!important}
+.tuk[data-frame="f5"] .t-a{animation-delay:-3.95s!important}
+.tuk[data-frame="f6"] .t-a{animation-delay:-4.6s!important}
+
+</style>
+</head>
+<body>
+<svg id="scene" aria-hidden="true" viewBox="0 0 358 306" preserveAspectRatio="xMidYMax slice">
+  <defs>
+    <filter id="lfWobble" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4" result="w"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="w" scale="2.6" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap></filter>
+    <filter id="lfGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="11" result="n"></feTurbulence><feColorMatrix in="n" type="luminanceToAlpha" result="l"></feColorMatrix><feComponentTransfer in="l" result="a"><feFuncA type="linear" slope="1.1" intercept="-0.52"></feFuncA></feComponentTransfer><feFlood flood-color="#3B2A18" result="c"></feFlood><feComposite in="c" in2="a" operator="in"></feComposite></filter>
+  </defs>
+  <rect id="s-sky" class="lf-sky" x="-60" y="-60" width="478" height="420"></rect>
+  <g id="s-sun" class="lf-fade">
+    <circle cx="294" cy="64" r="36" fill="#FFF4D6" opacity=".7"></circle>
+    <circle cx="294" cy="64" r="19" fill="#F6DD99" stroke="#2E2823" stroke-width="1.4"></circle>
+  </g>
+  <g filter="url(#lfWobble)">
+    <g class="lf-cloud-a"><path fill="#FFFFFF" stroke="#2E2823" stroke-width="1.4" stroke-linejoin="round" d="M44 82 C33 82 30 69 39 64 C39 52 54 47 62 54 C66 43 84 41 91 51 C101 46 113 54 110 64 C120 65 122 80 111 82 Z"></path></g>
+    <g class="lf-cloud-b"><path fill="#FFFFFF" stroke="#2E2823" stroke-width="1.4" stroke-linejoin="round" d="M196 124 C188 124 186 115 192 112 C192 104 203 101 208 106 C212 99 225 98 229 105 C237 102 245 108 242 115 C249 116 249 124 242 124 Z"></path></g>
+  </g>
+  <rect id="s-haze" class="lf-fade" x="-60" y="-60" width="478" height="420" fill="#D9D3C7"></rect>
+  <g filter="url(#lfWobble)">
+    <path class="lf-hill s-hill" stroke="#2E2823" stroke-width="1.4" stroke-linejoin="round" d="M-60 246 C-30 230 -10 236 -10 240 C40 216 96 208 150 222 C204 236 252 216 300 206 C326 201 348 204 370 210 C390 214 405 216 420 220 L420 340 L-60 340 Z"></path>
+    <path fill="none" stroke="#6B5A48" stroke-width="3" stroke-linecap="round" d="M318 216 L318 194"></path>
+    <path class="lf-tree s-tree" stroke="#2E2823" stroke-width="1.4" stroke-linejoin="round" d="M300 190 C296 174 312 164 322 170 C334 164 346 178 340 190 C346 198 336 208 326 204 C318 210 304 204 304 198 C298 198 296 192 300 190 Z"></path>
+    <path class="lf-tree s-tree" stroke="#2E2823" stroke-width="1.4" stroke-linejoin="round" d="M22 236 C18 226 28 218 36 223 C44 218 54 226 50 236 Z"></path>
+    <path class="lf-ground s-ground" stroke="#2E2823" stroke-width="1.4" stroke-linejoin="round" d="M-60 290 C-30 286 -20 285 -10 284 C60 272 150 270 220 276 C280 281 330 278 370 272 C390 270 405 270 420 271 L420 340 L-60 340 Z"></path>
+    <path fill="none" stroke="#2E2823" stroke-width="1.2" stroke-linecap="round" opacity=".5" d="M30 296 l2 -5 M36 297 l-1 -5 M318 292 l2 -5 M324 293 l-1 -5"></path>
+    <g id="s-flowers" class="lf-fade">
+      <path fill="none" stroke="#557E4A" stroke-width="1.8" stroke-linecap="round" d="M54 298 L54 289 M300 297 L300 288 M330 292 L330 283 M84 300 L84 293"></path>
+      <g stroke="#2E2823" stroke-width="1.2"><circle cx="54" cy="286" r="4" fill="#F2B4BE"></circle><circle cx="300" cy="285" r="4" fill="#BBA8DA"></circle><circle cx="330" cy="280" r="3.6" fill="#F3D67A"></circle><circle cx="84" cy="290" r="3.4" fill="#FBF3DA"></circle></g>
+    </g>
+  </g>
+  <rect x="-60" y="-60" width="478" height="420" filter="url(#lfGrain)" opacity=".22"></rect>
+  <text x="268" y="140" font-family="'Patrick Hand', 'Comic Neue', cursive" font-size="22" letter-spacing="2.6" fill="#7A5A3A">TUK</text>
+</svg>
+<div id="tuk-host"></div>
+<script>
+(function () {
+  var TEMPLATE = `<div class="tuk" data-stage="{{ stage }}" data-mode="{{ mode }}" data-frame="{{ frame }}" style="width: {{ px }}; height: {{ px }}; font-family: 'Figtree', system-ui, sans-serif; color: #2B2621">
+<svg viewBox="{{ vb }}" overflow="{{ ov }}" width="100%" height="100%" role="img" aria-label="{{ label }}">
+  <defs>
+    <filter id="tukTex" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.032" numOctaves="2" seed="3" result="warp"><animate attributeName="seed" values="{{ seeds }}" dur="0.42s" calcMode="discrete" repeatCount="indefinite"></animate></feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="warp" scale="2.8" xChannelSelector="R" yChannelSelector="G" result="drawn"></feDisplacementMap>
+      <feTurbulence type="fractalNoise" baseFrequency="1.0" numOctaves="2" seed="5" result="fine"></feTurbulence>
+      <feColorMatrix in="fine" type="luminanceToAlpha" result="fineA"></feColorMatrix>
+      <feComponentTransfer in="fineA" result="grain"><feFuncA type="linear" slope="1.0" intercept="-0.5"></feFuncA></feComponentTransfer>
+      <feFlood flood-color="#3B2A18" result="inkc"></feFlood>
+      <feComposite in="inkc" in2="grain" operator="in" result="inkGrain"></feComposite>
+      <feComposite in="inkGrain" in2="drawn" operator="in" result="grainIn"></feComposite>
+      <feMerge><feMergeNode in="drawn"></feMergeNode><feMergeNode in="grainIn"></feMergeNode></feMerge>
+    </filter>
+    <filter id="tukSoft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"></feGaussianBlur></filter>
+    <clipPath id="tukClipF"><ellipse cx="100" cy="95" rx="6.6" ry="8.4"></ellipse></clipPath>
+    <clipPath id="tukClipN"><ellipse cx="123" cy="92" rx="7.4" ry="9.2"></ellipse></clipPath>
+    <radialGradient id="tukGlowG"><stop offset="0" stop-color="#FFE2B8"></stop><stop offset=".4" stop-color="#F4A85E" stop-opacity=".8"></stop><stop offset="1" stop-color="#F4A85E" stop-opacity="0"></stop></radialGradient>
+  </defs>
+
+  <g class="t-fade" style="opacity: {{ v.haze }}">
+    <ellipse class="t-haze1" cx="64" cy="112" rx="44" ry="24" fill="#CFCBC3" filter="url(#tukSoft)"></ellipse>
+    <ellipse class="t-haze2" cx="238" cy="80" rx="40" ry="20" fill="#CFCBC3" filter="url(#tukSoft)"></ellipse>
+    <ellipse class="t-haze3" cx="150" cy="48" rx="46" ry="16" fill="#CFCBC3" filter="url(#tukSoft)"></ellipse>
+  </g>
+
+  <ellipse class="t-shadow t-a" cx="158" cy="289" rx="70" ry="8" fill="#2B2621" opacity=".1"></ellipse>
+
+  <g filter="url(#tukTex)">
+   <g class="t-bob t-a">
+    <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3" stroke-linejoin="round" d="M168 240 C167 256 165 270 168 280 C171 289 192 292 202 287 C209 283 206 274 201 267 C196 259 195 249 195 240 Z"></path>
+    <path fill="none" stroke="#2E2823" stroke-width="1.8" stroke-linecap="round" d="M174 288 C173 284.5 174 282 177 280.5 M183 290.5 C182 287 183 284.5 186 283"></path>
+    <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="2.6" stroke-linejoin="round" d="M240 238 C252 243 262 244 268 239 C262 233 254 229 246 226 Z"></path>
+    <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3" stroke-linejoin="round" d="M114 236 C111 252 106 268 108 279 C110 290 132 295 144 290 C151 287 151 279 147 272 C143 264 143 251 145 238 Z"></path>
+    <path fill="none" stroke="#2E2823" stroke-width="1.8" stroke-linecap="round" d="M115 289 C114 285.5 115 283 118 281.5 M124.5 292 C123.5 288.5 124.5 286 127.5 284.5"></path>
+    <path fill="#2B2621" opacity=".10" d="M140 246 C141 262 146 276 148 284 C150 290 144 292 140 291 C146 280 140 262 140 246 Z"></path>
+
+    <path class="t-fill" style="fill: {{ v.shell }}" stroke="#2E2823" stroke-width="3.2" stroke-linejoin="round" d="M132 112 C146 92 182 84 210 96 C240 110 258 146 255 186 C252 224 234 252 204 263 C180 271 150 266 136 252 C126 240 122 200 122 170 C122 146 124 124 132 112 Z"></path>
+    <path class="t-fill" style="fill: {{ v.scute }}" stroke="#2E2823" stroke-width="2.3" stroke-linejoin="round" d="M200 124 C210 119 220 118 228 121 C236 129 242 136 245 144 C245 154 243 164 239 172 C232 180 224 184 216 186 C209 179 203 170 199 161 C198 148 198 136 200 124 Z"></path>
+    <path fill="none" stroke="#2E2823" stroke-width="2.2" stroke-linecap="round" d="M200 124 C194 117 187 110 178 104 M228 121 C229.5 113 229.5 107 228 103 M245 144 C247 145 249 146 251 147 M239 172 C241.5 176.5 243.5 181 245 185 M216 186 C215 205 212 228 207 251 M199 161 C195 162 191 163 187 164"></path>
+    <path fill="none" stroke="#2E2823" stroke-width="2.2" stroke-linecap="round" d="M241 124 C250 142 252 166 249 190 C246 220 230 244 205 255 C186 262 164 260 148 250"></path>
+    <path fill="none" stroke="#2E2823" stroke-width="1.8" stroke-linecap="round" d="M249 200 L254 202 M243 222 L248 226 M230 241 L234 246 M216 251 L219 258 M190 258 L191 265 M168 257 L167 264"></path>
+    <path fill="#2B1A0A" opacity=".13" d="M252 158 C256 204 238 246 205 259 C183 267 160 263 143 252 C172 258 210 246 230 214 C243 194 248 176 252 158 Z"></path>
+    <path fill="#FFF8E8" opacity=".32" d="M150 104 C170 92 198 91 216 101 C198 97 174 99 156 111 Z"></path>
+
+    <g class="t-sprout t-grow" style="transform: scale({{ v.sprout }}); opacity: {{ v.sproutO }}">
+     <g class="t-sprout-a">
+      <path fill="none" stroke="#557E4A" stroke-width="2.8" stroke-linecap="round" d="M196 93 C195 85 197 78 198 71"></path>
+      <path fill="#8DBB6F" stroke="#2E2823" stroke-width="1.9" stroke-linejoin="round" d="M197.5 79 C189 76 182 68 183 61 C191 61 197 70 197.5 79 Z"></path>
+      <path fill="#9CC77C" stroke="#2E2823" stroke-width="1.9" stroke-linejoin="round" d="M198 74 C204 66 213 63 218 67 C214 75 206 78 198 74 Z"></path>
+      <circle class="t-grow" style="transform: scale({{ v.garden }}); transform-origin: 198px 70px" cx="198" cy="68" r="4.6" fill="#F2B8C2" stroke="#2E2823" stroke-width="1.7"></circle>
+     </g>
+    </g>
+
+    <g class="t-moss t-grow" style="transform: scale({{ v.garden }}); opacity: {{ v.garden }}">
+      <path fill="#8FB574" stroke="#2E2823" stroke-width="2" stroke-linejoin="round" d="M148 108 C152 99 162 93 171 96 C177 88 191 86 197 92 C205 86 219 90 223 98 C231 98 239 105 237 113 C227 109 214 107 204 104 C188 100 168 102 158 109 C154 111 150 111 148 108 Z"></path>
+      <path fill="#A7C98C" opacity=".8" d="M160 101 C166 96 172 96 176 99 C170 99 165 101 160 104 Z M200 93 C206 91 213 92 217 96 C211 95 206 95 200 96 Z"></path>
+    </g>
+    <g class="t-g1 t-grow" style="transform: scale({{ v.garden }}); opacity: {{ v.garden }}">
+      <path fill="none" stroke="#557E4A" stroke-width="2.2" stroke-linecap="round" d="M176 97 C175 92 176 88 177 84"></path>
+      <g fill="#F2B4BE" stroke="#2E2823" stroke-width="1.6"><circle cx="177" cy="76.5" r="4"></circle><circle cx="183.5" cy="80.5" r="4"></circle><circle cx="181" cy="87.5" r="4"></circle><circle cx="173" cy="87.5" r="4"></circle><circle cx="170.5" cy="80.5" r="4"></circle></g>
+      <circle cx="177" cy="82.6" r="3" fill="#F3D67A" stroke="#2E2823" stroke-width="1.5"></circle>
+    </g>
+    <g class="t-g2 t-grow" style="transform: scale({{ v.garden }}); opacity: {{ v.garden }}">
+      <path fill="none" stroke="#557E4A" stroke-width="2.2" stroke-linecap="round" d="M214 96 C214 90 215 86 216 82"></path>
+      <g fill="#FBF3DA" stroke="#2E2823" stroke-width="1.5"><ellipse cx="216" cy="72" rx="2.8" ry="5"></ellipse><ellipse cx="223.5" cy="77" rx="5" ry="2.8"></ellipse><ellipse cx="221" cy="84" rx="2.8" ry="5" transform="rotate(-35 221 84)"></ellipse><ellipse cx="211" cy="84" rx="2.8" ry="5" transform="rotate(35 211 84)"></ellipse><ellipse cx="208.5" cy="77" rx="5" ry="2.8"></ellipse></g>
+      <circle cx="216" cy="78" r="3.4" fill="#F0C65A" stroke="#2E2823" stroke-width="1.5"></circle>
+    </g>
+    <g class="t-g3 t-grow" style="transform: scale({{ v.garden }}); opacity: {{ v.garden }}">
+      <path fill="none" stroke="#557E4A" stroke-width="2" stroke-linecap="round" d="M236 112 C238 106 241 101 245 98"></path>
+      <g fill="#BBA8DA" stroke="#2E2823" stroke-width="1.5"><ellipse cx="246" cy="94" rx="3.6" ry="4.4"></ellipse><ellipse cx="240" cy="101" rx="3.3" ry="4"></ellipse><ellipse cx="251" cy="101" rx="3.2" ry="3.9"></ellipse></g>
+    </g>
+    <g class="t-g4 t-grow" style="transform: scale({{ v.garden }}); opacity: {{ v.garden }}">
+      <path fill="#9CC77C" stroke="#2E2823" stroke-width="1.6" stroke-linejoin="round" d="M190 100 C186 94 186 88 190 84 C194 88 194 95 190 100 Z M228 104 C230 97 235 94 240 95 C238 101 234 104 228 104 Z"></path>
+    </g>
+
+    <path class="t-fill" style="fill: {{ v.belly }}" stroke="#2E2823" stroke-width="3.2" stroke-linejoin="round" d="M98 150 C92 176 94 222 112 246 C126 262 160 266 178 254 C192 244 197 214 195 186 C193 160 183 142 164 136 C140 130 108 134 98 150 Z"></path>
+    <path fill="none" stroke="#2E2823" stroke-width="2" stroke-linecap="round" opacity=".75" d="M101 183 C128 192 166 192 194 181 M100 215 C128 224 167 224 192 213 M111 243 C132 251 160 251 182 241"></path>
+    <path fill="#3A2810" opacity=".10" d="M187 168 C194 200 192 233 178 252 C168 260 152 263 139 261 C160 255 176 241 182 221 C186 204 188 186 187 168 Z"></path>
+    <ellipse cx="130" cy="147" rx="34" ry="7" fill="#2B2108" opacity=".08"></ellipse>
+
+    <g class="t-armF-u t-tr" style="transform: rotate({{ v.aFU }}deg)"><g class="t-armF-u-a t-a">
+      <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3" stroke-linejoin="round" d="M177 147 C172.5 155 172 167 174.5 176.5 C177 184 190 184.5 192.5 177 C195 168.5 195 157 191.5 148 C189 142.5 179.5 142 177 147 Z"></path>
+      <g class="t-armF-f t-tr" style="transform: rotate({{ v.aFF }}deg)"><g class="t-armF-f-a t-a">
+        <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3" stroke-linejoin="round" d="M178.5 173 C175.5 182 175.5 193 177.5 201.5 C179.5 209.5 193 210 195.5 202 C198 194 197.5 183 195 174 C192.5 168.5 181 168 178.5 173 Z"></path>
+        <path fill="none" stroke="#2E2823" stroke-width="1.7" stroke-linecap="round" d="M182.5 206 C183.5 208 185.5 209 187.5 209 M189 208 C190.3 209.6 192.3 209.8 193.7 209"></path>
+      </g></g>
+    </g></g>
+
+    <g class="t-head t-tr" style="transform: translateY({{ v.headY }}px) rotate({{ v.headR }}deg)"><g class="t-head-a t-a">
+      <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3" stroke-linejoin="round" d="M112 126 C113 140 122 151 138 154 C152 156 163 149 167 138 L163 118 Z"></path>
+      <path fill="none" stroke="#2E2823" stroke-width="1.7" stroke-linecap="round" opacity=".75" d="M126 147.5 C132 150.2 139 150.8 146 149.6"></path>
+      <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3.2" stroke-linejoin="round" d="M122 54 C150 52 169 72 168 98 C167 124 147 141 120 141 C100 141 86 132 80 118 C76 112 70 106 71 99 C72 92 76 88 80 84 C88 64 104 55 122 54 Z"></path>
+      <path fill="#2B2108" opacity=".12" d="M167 96 C167 122 148 141 120 141 C104 141 92 136 86 128 C100 134 116 136 132 132 C150 126 162 112 167 96 Z"></path>
+      <path fill="#FFFBEA" opacity=".35" d="M98 66 C108 59 122 56 136 58 C124 60 112 64 103 71 Z"></path>
+      <path class="t-fade" fill="none" style="stroke: {{ v.blush }}; opacity: {{ v.blushO }}" stroke-width="1.7" stroke-linecap="round" d="M131 109 L134 103.5 M135.8 109.6 L138.8 104.1 M140.6 110.2 L143.6 104.7"></path>
+      <g class="t-eyeF t-a"><ellipse cx="100" cy="95" rx="4.6" ry="6.2" fill="#2E2823"></ellipse><circle class="t-fade" style="opacity: {{ v.hi }}" cx="101.7" cy="92.4" r="1.5" fill="#FFFDF6"></circle></g>
+      <g class="t-eyeN t-a"><ellipse cx="123" cy="92" rx="5.4" ry="7.2" fill="#2E2823"></ellipse><circle class="t-fade" style="opacity: {{ v.hi }}" cx="125" cy="89" r="1.8" fill="#FFFDF6"></circle></g>
+      <g clip-path="url(#tukClipF)"><g class="t-tr" style="transform: translateY({{ v.lidY }}px)">
+        <path class="t-fill" style="fill: {{ v.skin }}" d="M92 80 L109 80 L109 95.2 C104.5 97.4 96.5 97.4 92 95.2 Z"></path>
+        <path fill="none" stroke="#2E2823" stroke-width="1.9" stroke-linecap="round" d="M93.6 95 C97.2 97.2 103 97.2 106.8 94.6"></path>
+      </g></g>
+      <g clip-path="url(#tukClipN)"><g class="t-tr" style="transform: translateY({{ v.lidY }}px)">
+        <path class="t-fill" style="fill: {{ v.skin }}" d="M114 76 L133 76 L133 92.2 C127.5 94.8 119.5 94.8 114 92.2 Z"></path>
+        <path fill="none" stroke="#2E2823" stroke-width="2" stroke-linecap="round" d="M115.6 92 C120 94.8 126.4 94.8 130.8 91.6"></path>
+      </g></g>
+      <path class="t-fade" style="opacity: {{ v.bagsO }}" fill="none" stroke="#2E2823" stroke-width="1.5" stroke-linecap="round" d="M95.5 104.5 C98.5 106.3 102 106.3 105 104.3 M117.5 102.6 C121 104.9 126 104.9 129.5 102.3"></path>
+      <path class="t-tr" style="transform: rotate({{ v.bF }}deg); transform-origin: 99px 81px" fill="none" stroke="#2E2823" stroke-width="2.2" stroke-linecap="round" d="M94 82.5 C97 80.5 101 80 104.5 81"></path>
+      <path class="t-tr" style="transform: rotate({{ v.bN }}deg); transform-origin: 123px 78px" fill="none" stroke="#2E2823" stroke-width="2.3" stroke-linecap="round" d="M116.5 79 C120 77 125 76.5 129.5 78"></path>
+      <circle cx="75.6" cy="95.4" r="1.3" fill="#2E2823"></circle><circle cx="80.2" cy="93.8" r="1.2" fill="#2E2823"></circle>
+      <path class="t-ml t-a" fill="none" stroke="#2E2823" stroke-width="2.4" stroke-linecap="round" d="{{ v.mouth }}" style="d: path('{{ v.mouth }}'); transition: d 1.1s ease"></path>
+      <ellipse class="t-mo t-a" style="opacity: 0" cx="80" cy="110" rx="2.8" ry="2.4" fill="#5B4A3F" stroke="#2E2823" stroke-width="1.8"></ellipse>
+    </g></g>
+
+    <g class="t-puff t-a" style="opacity: 0">
+      <path fill="#DEDCD7" stroke="#B5B1AB" stroke-width="1.4" stroke-linejoin="round" d="M74 110 C68 100 52 98 46 106 C36 100 22 108 24 118 C14 122 16 136 28 138 C30 148 46 150 54 143 C62 152 78 148 80 138 C90 136 92 124 84 118 C88 112 82 106 74 110 Z"></path>
+      <path fill="#F5F4F1" opacity=".75" d="M33 117 C35 108 45 105 52 109 C44 109 38 113 35 121 Z M50 133 C54 128 61 128 65 131 C59 131 55 133 51 138 Z"></path>
+    </g>
+
+    <g class="t-armN-u t-tr" style="transform: rotate({{ v.aNU }}deg)"><g class="t-armN-u-a t-a">
+      <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3" stroke-linejoin="round" d="M99 149 C94 157 93 169 95 178 C97 185.5 110 186 112.5 178.5 C115 170 115 158 112 150 C109.5 144 101.5 144 99 149 Z"></path>
+      <g class="t-armN-f t-tr" style="transform: rotate({{ v.aNF }}deg)"><g class="t-armN-f-a t-a">
+        <g class="t-fade" style="opacity: {{ v.cig }}"><g class="t-cig-a t-a">
+          <g transform="rotate(-6 101 206)">
+            <rect x="101" y="203.2" width="25" height="5.6" rx="2.2" fill="#FBF8F1" stroke="#2E2823" stroke-width="1.6"></rect>
+            <rect x="101" y="203.2" width="7.5" height="5.6" rx="1.8" fill="#E8C69A" stroke="#2E2823" stroke-width="1.4"></rect>
+            <rect x="123" y="203.6" width="3" height="4.8" rx="1.2" fill="#F2A65A"></rect>
+            <circle class="t-glow t-a" cx="125" cy="206" r="9" fill="url(#tukGlowG)"></circle>
+            <g transform="rotate(-175 125 206)"><path class="t-wisp t-a" fill="none" stroke="#A19D97" stroke-width="1.8" stroke-linecap="round" d="M125 200 C121 192 129 186 125 178 C121 170 129 164 125 155 C122 148 127 143 125 137"></path></g>
+          </g>
+        </g></g>
+        <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="3" stroke-linejoin="round" d="M94.5 175 C91.5 184 90.5 195 92.5 203.5 C94.5 211.5 108.5 212 111 204 C113.5 196 113 185 110.5 176 C108 170.5 97 170 94.5 175 Z"></path>
+        <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="2.4" stroke-linejoin="round" d="M93.5 195 C88 194.5 86.5 203 92.5 205.5 Z"></path>
+        <path fill="none" stroke="#2E2823" stroke-width="1.7" stroke-linecap="round" d="M97.5 207.5 C98.5 209.6 100.5 210.5 102.4 210.5 M103.8 209.6 C105.2 211 107.2 211 108.6 210"></path>
+      </g></g>
+    </g></g>
+
+    <g class="t-fade" style="opacity: {{ v.cup }}">
+      <path class="t-steam1" fill="none" stroke="#B5B0A8" stroke-width="1.9" stroke-linecap="round" d="M122 157 C118 151 125 147 121 140"></path>
+      <path class="t-steam2" fill="none" stroke="#B5B0A8" stroke-width="1.9" stroke-linecap="round" d="M134 157 C138 151 131 146 135 139"></path>
+      <path fill="#A9C8E6" stroke="#2E2823" stroke-width="2.7" stroke-linejoin="round" d="M109 162 L147 162 L144 186 C143 193.5 113 193.5 112 186 Z"></path>
+      <path fill="none" stroke="#6F98C2" stroke-width="2.2" stroke-linecap="round" opacity=".7" d="M111.5 173 C122 175 134 175 145 173"></path>
+      <ellipse cx="128" cy="162.5" rx="19" ry="3.9" fill="#C79C64" stroke="#2E2823" stroke-width="2"></ellipse>
+      <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="2.4" stroke-linejoin="round" d="M105 176 C104 170 110 167 115 170 C118 173 117 180 112 182 C108 183 105.5 180 105 176 Z"></path>
+      <path class="t-fill" style="fill: {{ v.skin }}" stroke="#2E2823" stroke-width="2.4" stroke-linejoin="round" d="M151 173 C152 167 146 164 141 167.5 C138 170.5 139 177.5 144 179 C148 180 150.5 177 151 173 Z"></path>
+    </g>
+   </g>
+  </g>
+</svg>
+</div>`;
+
+  // Per-stage look, straight from the design's Tuk component.
+  var T = {"1": {"name": "Smoking", "skin": "#A8AA93", "shell": "#9F927E", "scute": "#AEA18C", "belly": "#E4DAC5", "cig": 1, "cup": 0, "haze": 0.5, "bags": 1, "lidY": 0, "hi": 0.35, "bF": -13, "bN": 13, "mouth": "M76 108 C83 104 94 105 103 111", "aNU": 0, "aNF": 0, "aFU": 10, "aFF": 75, "sprout": 0, "garden": 0, "blush": "#8F8374", "blushO": 0.35, "headY": 3, "headR": -2}, "2": {"name": "Cutting down", "skin": "#A7B293", "shell": "#AA977B", "scute": "#B9A68A", "belly": "#E9DEC6", "cig": 0, "cup": 1, "haze": 0.28, "bags": 0.7, "lidY": -2, "hi": 0.5, "bF": -8, "bN": 8, "mouth": "M76 107 C84 109 94 110 103 110", "aNU": 28, "aNF": -104, "aFU": 38, "aFF": 38, "sprout": 0, "garden": 0, "blush": "#8F8374", "blushO": 0.3, "headY": 2, "headR": -1}, "3": {"name": "Recovering", "skin": "#A2BA90", "shell": "#BD9D70", "scute": "#CBAE83", "belly": "#EEE2C8", "cig": 0, "cup": 0, "haze": 0, "bags": 0.3, "lidY": -5, "hi": 0.8, "bF": -3, "bN": 3, "mouth": "M76 106 C84 111 94 112 103 109", "aNU": 0, "aNF": 0, "aFU": 0, "aFF": 0, "sprout": 0, "garden": 0, "blush": "#D69A8E", "blushO": 0.35, "headY": 1, "headR": 0}, "4": {"name": "Healthy", "skin": "#9BC089", "shell": "#CA9F65", "scute": "#D8B27B", "belly": "#F2E6CB", "cig": 0, "cup": 0, "haze": 0, "bags": 0, "lidY": -14, "hi": 1, "bF": 3, "bN": -3, "mouth": "M76 105 C84 113 96 114 104 107", "aNU": 6, "aNF": -4, "aFU": -5, "aFF": 3, "sprout": 1, "garden": 0, "blush": "#E2998B", "blushO": 0.6, "headY": 0, "headR": 0}, "5": {"name": "Thriving", "skin": "#94C480", "shell": "#DAA95D", "scute": "#E7BD78", "belly": "#F5E9CD", "cig": 0, "cup": 0, "haze": 0, "bags": 0, "lidY": -14, "hi": 1, "bF": 5, "bN": -5, "mouth": "M75 104 C83 116 98 117 106 105", "aNU": 115, "aNF": 0, "aFU": -8, "aFF": 6, "sprout": 1, "garden": 1, "blush": "#E2998B", "blushO": 0.75, "headY": 0, "headR": 0}};
+
+  // Tuk's little world on the Home screen, per stage.
+  var SCENE = {"1": {"sky": "#E7E3DA", "hill": "#C9C6B3", "tree": "#D2CDB2", "ground": "#DCD5C5", "haze": 0.42, "sun": 0, "flowers": 0}, "2": {"sky": "#E2E7E4", "hill": "#C3CAAE", "tree": "#DAD49F", "ground": "#E0D8C3", "haze": 0.2, "sun": 0.35, "flowers": 0}, "3": {"sky": "#DAE8EF", "hill": "#B6CDA2", "tree": "#E1D891", "ground": "#E5DBBF", "haze": 0, "sun": 0.7, "flowers": 0}, "4": {"sky": "#D2E5F3", "hill": "#A8CB92", "tree": "#E6DA86", "ground": "#E8DDBB", "haze": 0, "sun": 0.9, "flowers": 1}, "5": {"sky": "#C9E0F5", "hill": "#9DCA85", "tree": "#EBDC7E", "ground": "#EBDFB8", "haze": 0, "sun": 1, "flowers": 1}};
+
+  var MODES = ['loop', 'still', 'breathe', 'head'];
+  // The app passes parameters as window.TUK_PARAMS before the page loads; the query string
+  // is for opening the page on its own.
+  var query = new URLSearchParams(location.search);
+  var given = window.TUK_PARAMS || {};
+  function param(name) { return given[name] != null ? String(given[name]) : query.get(name); }
+  var state = {
+    stage: clampStage(param('stage')),
+    mode: MODES.indexOf(param('mode')) >= 0 ? param('mode') : 'loop',
+    scene: param('scene') === 'home',
+    isStatic: param('static') === '1'
+  };
+  var host = document.getElementById('tuk-host');
+
+  function clampStage(value) {
+    var n = parseInt(value, 10);
+    return n >= 1 && n <= 5 ? n : 2;
+  }
+
+  function values() {
+    var st = state.stage, mode = state.mode, head = mode === 'head';
+    var v = Object.assign({}, T[st]);
+    if (mode === 'breathe' || head) {
+      v.cig = 0; v.cup = 0; v.haze = head ? 0 : v.haze * 0.5;
+      v.aNU = 6; v.aNF = -4; v.aFU = -5; v.aFF = 3;
+    }
+    if (mode === 'still' && st === 1) { v.aNU = 95; v.aNF = 86; }
+    v.bagsO = Math.round(v.bags * 55) / 100;
+    v.sproutO = v.sprout ? 1 : 0;
+    var still = state.isStatic || mode === 'still' || head;
+    return {
+      stage: String(st),
+      mode: mode,
+      frame: state.isStatic && mode !== 'still' && mode !== 'head' ? 'f1' : '',
+      px: '100%',
+      vb: head ? '60 40 118 118' : '0 0 300 300',
+      ov: head ? 'hidden' : 'visible',
+      seeds: still ? '3' : '3;8;13',
+      label: 'Tuk the tortoise, stage ' + st + ': ' + v.name.toLowerCase(),
+      v: v
+    };
+  }
+
+  function fill(vals) {
+    return TEMPLATE.replace(/\{\{\s*([\w.]+)\s*\}\}/g, function (_, path) {
+      return path.split('.').reduce(function (o, k) { return o == null ? '' : o[k]; }, vals);
+    });
+  }
+
+  // The template's structure never changes, only its values, so copy attributes across
+  // element by element. Editing in place lets the rig's CSS transitions play.
+  function morph(from, to) {
+    var i;
+    for (i = from.attributes.length - 1; i >= 0; i--) {
+      var name = from.attributes[i].name;
+      if (!to.hasAttribute(name)) from.removeAttribute(name);
+    }
+    for (i = 0; i < to.attributes.length; i++) {
+      var a = to.attributes[i];
+      if (from.getAttribute(a.name) !== a.value) from.setAttribute(a.name, a.value);
+    }
+    var fromKids = from.children, toKids = to.children;
+    for (i = 0; i < fromKids.length && i < toKids.length; i++) morph(fromKids[i], toKids[i]);
+  }
+
+  function renderScene() {
+    document.body.classList.toggle('has-scene', state.scene);
+    if (!state.scene) return;
+    var s = SCENE[state.stage];
+    document.getElementById('s-sky').style.fill = s.sky;
+    document.getElementById('s-sun').style.opacity = s.sun;
+    document.getElementById('s-haze').style.opacity = s.haze;
+    document.getElementById('s-flowers').style.opacity = s.flowers;
+    [['s-hill', s.hill], ['s-tree', s.tree], ['s-ground', s.ground]].forEach(function (pair) {
+      Array.prototype.forEach.call(document.getElementsByClassName(pair[0]), function (el) { el.style.fill = pair[1]; });
+    });
+    layout();
+  }
+
+  // In the design Tuk stands at (53, 56), 236 pt square, inside a 358 x 306 card.
+  // The scene is scaled to fill and pinned to the bottom, so place Tuk the same way.
+  function layout() {
+    if (!state.scene) { host.removeAttribute('style'); return; }
+    var w = window.innerWidth, h = window.innerHeight;
+    var s = Math.max(w / 358, h / 306);
+    var x = (w - 358 * s) / 2, y = h - 306 * s;
+    host.style.left = (x + 53 * s) + 'px';
+    host.style.top = (y + 56 * s) + 'px';
+    host.style.width = host.style.height = (236 * s) + 'px';
+  }
+
+  function render() {
+    document.body.classList.toggle('is-static', state.isStatic);
+    var html = fill(values());
+    var current = host.firstElementChild;
+    if (current) {
+      var scratch = document.createElement('div');
+      scratch.innerHTML = html;
+      morph(current, scratch.firstElementChild);
+    } else {
+      host.innerHTML = html;
+    }
+    renderScene();
+  }
+
+  window.tuk = {
+    set: function (opts) {
+      if (opts.stage != null) state.stage = clampStage(opts.stage);
+      if (opts.mode != null && MODES.indexOf(opts.mode) >= 0) state.mode = opts.mode;
+      render();
+    }
+  };
+  window.addEventListener('resize', layout);
+  render();
+})();
+</script>
+</body>
+</html>

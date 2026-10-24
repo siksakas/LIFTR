@@ -1,6 +1,7 @@
 # ElevenLabs check-in partner setup
 
-The **Talk** tab in Liftr connects to an ElevenLabs Agent. The user tells it how their day went,
+The **Voice** mode of the **Coach** tab in Liftr connects to an ElevenLabs Agent (craving help's
+mic button opens it too). The user tells it how their day went,
 and the agent calls two **client tools** that run inside the app to log the day and read back
 progress. Nothing about the agent lives in code except the tool names below, so you can tune the
 voice and personality in the ElevenLabs dashboard without shipping a new build.
@@ -24,8 +25,9 @@ You talk with them once a day, by voice, about how their day went.
 What you know right now:
 - Current sober streak: {{sober_streak_days}} days (longest ever: {{longest_streak_days}})
 - Already checked in today: {{logged_today}} (cigarettes logged today: {{cigarettes_today}})
-- Liftr score: {{liftr_score}} out of 850 (starts at 300, grows as they stay sober and keep checking in)
-- Their pet, {{pet_name}}, is feeling {{pet_mood}}. The pet gets healthier the longer they stay sober.
+- Liftr score: {{liftr_score}} out of 850 (starts at 300, grows as they cut down; a slip only nudges it down)
+- Their tortoise companion, {{pet_name}}, is at the "{{tuk_stage}}" stage and feeling {{pet_mood}}.
+  Tuk mirrors their habit and gets healthier as they cut down.
 
 Your job in each conversation:
 1. Ask how their day went and listen. Keep replies short, two or three sentences, since this is a voice call.
@@ -34,9 +36,9 @@ Your job in each conversation:
    Optionally ask how strong their cravings were from 0 to 10, and how they're feeling.
 3. Once you know the number, call log_daily_checkin. If they're telling you about yesterday
    (for example, they forgot to check in), pass day = "yesterday".
-4. Use the result to respond: celebrate the streak and score going up on a sober day; on a day
-   they smoked, be kind and non-judgmental, note that the streak restarts and the score will
-   recover, and help them plan for tomorrow (triggers, what they'll do instead).
+4. Use the result to respond: celebrate fewer cigarettes and the score going up; on a harder day,
+   be kind and non-judgmental, note that one day only nudges the score and Tuk moves back one
+   stage at most, and help them plan for tomorrow (triggers, what they'll do instead).
 5. If they ask about their progress, call get_progress.
 
 Rules:
@@ -47,7 +49,8 @@ Rules:
   encourage them to contact a medical professional or emergency services.
 ```
 
-All seven `{{variables}}` above are sent by the app when the call starts. If you add a new
+All eight `{{variables}}` above are sent by the app when the call starts. (`pet_name` and
+`pet_mood` keep their old names so agents set up before Tuk keep working.) If you add a new
 variable to the prompt, add it to `dynamicVariables()` in `LIFTR/Voice/CheckInPartner.swift` too,
 or the conversation will fail to start.
 
@@ -60,7 +63,7 @@ Under the agent's **Tools → Add tool → Client**, add these two tools. Turn o
 
 ### `log_daily_checkin`
 
-Description: *Save how many cigarettes the user smoked today (or yesterday). 0 means a sober day. Returns their updated streak, score and pet health.*
+Description: *Save how many cigarettes the user smoked today (or yesterday). 0 means a sober day. Returns their updated streak, score and Tuk's stage.*
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -73,14 +76,15 @@ Description: *Save how many cigarettes the user smoked today (or yesterday). 0 m
 Returns JSON like:
 
 ```json
-{"cigarettes_last7_days":0,"liftr_score":412,"logged_cigarettes":0,"logged_day":"today",
- "logged_today":true,"longest_streak_days":5,"pet_health":75,"pet_mood":"happy","pet_name":"Sprout",
- "score_change":14,"sober_streak_days":5,"status":"logged","total_sober_days":9, ...}
+{"cigarettes_last7_days":0,"liftr_score":548,"logged_cigarettes":0,"logged_day":"today",
+ "logged_today":true,"longest_streak_days":5,"pet_mood":"sleepy but hopeful","pet_name":"Tuk",
+ "score_change":14,"score_change_this_week":18,"sober_streak_days":5,"status":"logged",
+ "total_sober_days":9,"tuk_stage":"Cutting down","tuk_stage_number":2, ...}
 ```
 
 ### `get_progress`
 
-Description: *Get the user's current sober streak, Liftr score, and pet health.* No parameters.
+Description: *Get the user's current sober streak, Liftr score, and Tuk's stage.* No parameters.
 
 ## 3. Point the app at the agent
 
@@ -88,7 +92,7 @@ Description: *Get the user's current sober streak, Liftr score, and pet health.*
 2. Set `AgentID` to the agent's ID (shown on the agent page, starts with `agent_`).
 3. Build and run. Xcode will fetch the `ElevenLabs` Swift package the first time.
 
-Or skip the plist: run the app, open the **Talk** tab, and paste the agent ID into the setup card.
+Or skip the plist: run the app, open **Coach**, switch to **Voice**, and paste the agent ID into the setup card.
 It's saved on the device. A plist, if present, takes priority.
 
 ### Public vs private agent
@@ -102,12 +106,17 @@ It's saved on the device. A plist, if present, takes priority.
 
 ## How the numbers work
 
-All of this lives in `LIFTR/Models/RecoveryProgress.swift`.
+All of this lives in `LIFTR/Models/RecoveryProgress.swift`. Cigarettes, vapes and nicotine pouches
+all count.
 
-- **Sober streak**: consecutive logged days with 0 cigarettes, ending today. If today isn't logged
+- **Sober streak**: consecutive logged days with no nicotine, ending today. If today isn't logged
   yet, the streak counts back from yesterday, so it doesn't reset in the morning. A missed
   (unlogged) day in the past breaks the streak.
-- **Liftr score** (300 to 850): 50% current streak (maxes out at 90 days), 30% share of sober days
-  among logged days in the last 30, 20% how many of the last 30 days were logged.
-- **Pet health** (0 to 100): starts at 50, +5 per streak day (up to +50), −2 per cigarette in the
-  last 7 days (up to −50).
+- **Baseline**: the user's usual amount per day, the average of their first 7 logged days.
+- **Liftr score** (300 to 850): each logged day scores from 0 (the baseline or more) to 1 (none),
+  so going from 6 a day to 3 scores 0.5. The score is 70% the average over the last 3 months and
+  30% the average since day one. It needs 14 logged days for full credit, so one good first day
+  doesn't jump to the top. Unlogged days don't count either way, and one slip is one day among many.
+- **Tuk's stage** follows the score: Smoking 300–449, Cutting down 450–579, Recovering 580–669,
+  Healthy 670–749, Thriving 750–850. A slip moves Tuk back one stage at most below the best stage
+  reached, and never back to Smoking once Tuk has left it.

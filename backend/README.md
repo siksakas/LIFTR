@@ -70,4 +70,6 @@ an `X-App-Token` header with that value.
 3. Add every variable from `.env.example` under the app's environment variables and tick **Encrypt**
    for the secrets.
 4. Once it's live, put `https://<your-app>.ondigitalocean.app/elevenlabs/token` into `ConversationTokenURL`
-   in `LIFTR/ElevenLabs.plist`, and turn on authentication on the ElevenLabs agent.
+   in `LIFTR/ElevenLabs.plist`, and turn on authentication on the ElevenLabs agent. The app then also
+   uses this backend for Coach's typed replies and to save each day's counts. To use the backend
+   without a private agent, set `BackendURL` (and `AppToken`, if you set `APP_TOKEN`) in the plist instead.
