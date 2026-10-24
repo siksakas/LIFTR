@@ -52,6 +52,7 @@ struct LIFTRApp: App {
             // Streaks depend on what "today" is, so recompute when the app comes back.
             if scenePhase == .active {
                 store.refresh()
+                store.syncPending()
                 Task { await reminders.refreshAuthorization() }
             }
         }

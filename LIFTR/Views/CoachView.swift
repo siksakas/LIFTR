@@ -21,7 +21,13 @@ struct CoachView: View {
     @State private var showsCallLines = false
     @FocusState private var isTyping: Bool
 
-    private let backend = LiftrBackend.load()
+    /// Bumped when a backend address is saved in the app, so the view re-checks the settings.
+    @State private var settingsRevision = 0
+
+    private var backend: BackendSettings? {
+        _ = settingsRevision
+        return BackendSettings.load()
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +40,12 @@ struct CoachView: View {
             VStack(spacing: 10) {
                 if mode == .voice, !partner.isConfigured {
                     AgentSetupCard()
+                }
+                if mode == .text, backend == nil {
+                    BackendSetupCard {
+                        settingsRevision += 1
+                        store.syncPending()
+                    }
                 }
                 if mode == .text { textInput } else { voiceButton }
             }
@@ -169,6 +181,12 @@ struct CoachView: View {
                         .id("suggestions")
                         .transition(.opacity)
                     }
+                    if let syncError = store.syncError {
+                        Label("Check-ins aren't syncing: \(syncError)", systemImage: "exclamationmark.icloud")
+                            .font(.figtree(13, .semibold, relativeTo: .footnote))
+                            .foregroundStyle(Palette.tanInk)
+                            .frame(maxWidth: .infinity)
+                    }
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding(.horizontal, 16)
@@ -226,7 +244,7 @@ struct CoachView: View {
         thread.append(.me(text))
 
         guard let backend else {
-            thread.append(.note("Typed replies need the LIFTR backend. Add BackendURL to ElevenLabs.plist (see backend/README.md), or switch to Voice."))
+            thread.append(.note("Typed replies need the LIFTR backend. Enter its address below, or switch to Voice."))
             return
         }
         let history = thread.chatHistory
@@ -234,7 +252,7 @@ struct CoachView: View {
         Task {
             thread.setTyping(true)
             do {
-                let reply = try await backend.coachReply(to: history, progress: progress)
+                let reply = try await BackendClient(settings: backend).coachReply(messages: history, progress: progress)
                 thread.setTyping(false)
                 thread.append(.tuk(reply, nil))
             } catch {
@@ -516,6 +534,61 @@ private struct TypingBubble: View {
         }
         .onAppear { bounce = true }
         .accessibilityLabel("Tuk is typing")
+    }
+}
+
+/// Shown in text mode until the app knows where the LIFTR backend runs.
+private struct BackendSetupCard: View {
+    var onSave: () -> Void
+    @State private var address = "http://localhost:8080"
+    @State private var invalid = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Typed coaching isn't connected yet")
+                .font(.figtree(15, .heavy, relativeTo: .headline))
+                .foregroundStyle(Palette.ink)
+            Text("Start the backend (see backend/README.md) and enter its address. In the simulator on the same Mac, that's http://localhost:8080. You can also add it to LIFTR/Backend.plist.")
+                .font(.figtree(13, relativeTo: .footnote))
+                .foregroundStyle(Palette.inkSecondary)
+            HStack {
+                TextField("https://…", text: $address)
+                    .font(.figtree(15, relativeTo: .body))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .onSubmit(save)
+                    .padding(.horizontal, 12)
+                    .frame(height: 40)
+                    .background(Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.chipBorder, lineWidth: 1))
+                Button("Save", action: save)
+                    .font(.figtree(15, .heavy, relativeTo: .body))
+                    .foregroundStyle(Palette.onGreen)
+                    .padding(.horizontal, 16)
+                    .frame(height: 40)
+                    .background(Palette.green, in: Capsule())
+                    .disabled(address.isEmpty)
+            }
+            if invalid {
+                Text("That doesn't look like a web address. It starts with http:// or https://.")
+                    .font(.figtree(13, relativeTo: .footnote))
+                    .foregroundStyle(Palette.tanInk)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .liftrCard(radius: 20, fill: Palette.paper)
+    }
+
+    private func save() {
+        guard let url = BackendSettings.normalizedURL(address) else {
+            invalid = true
+            return
+        }
+        invalid = false
+        UserDefaults.standard.set(url.absoluteString, forKey: BackendSettings.savedURLKey)
+        onSave()
     }
 }
 

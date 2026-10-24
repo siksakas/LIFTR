@@ -23,6 +23,9 @@ final class DailyLog {
     /// "voice" when the ElevenLabs partner logged it, "manual" otherwise.
     var source: String
     var updatedAt: Date
+    /// The `updatedAt` of the version last saved to the backend. Nil until it's synced;
+    /// different from `updatedAt` once the log changes again.
+    var syncedVersion: Date? = nil
 
     init(
         day: Date,

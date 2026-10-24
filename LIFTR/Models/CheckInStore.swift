@@ -11,7 +11,6 @@ import SwiftData
 @Observable
 final class CheckInStore {
     private let context: ModelContext
-    @ObservationIgnored private let backend = LiftrBackend.load()
     private(set) var progress: RecoveryProgress
     private(set) var patterns: UsagePatterns
 
@@ -62,7 +61,7 @@ final class CheckInStore {
             )
             context.insert(entry)
         }
-        try save(syncing: entry)
+        try save()
         return entry
     }
 
@@ -84,7 +83,7 @@ final class CheckInStore {
 
         let events = (0..<count).map { _ in LogEvent(kind: LogEvent.Kind(product), timestamp: date, source: source) }
         for event in events { context.insert(event) }
-        try save(syncing: day)
+        try save()
         return events
     }
 
@@ -97,27 +96,29 @@ final class CheckInStore {
             day = existing
         }
         for event in events { context.delete(event) }
-        try save(syncing: day)
+        try save()
     }
 
     /// Notes what set off the given uses, like "Stress". `nil` clears it.
     func setTrigger(_ trigger: String?, for events: [LogEvent]) {
         events.forEach { $0.trigger = trigger }
-        try? save(syncing: nil)
+        try? save()
     }
 
     /// Remembers that a craving hit, so it shows up in when cravings hit.
     func logCraving(source: String = "manual") {
         context.insert(LogEvent(kind: .craving, source: source))
-        try? save(syncing: nil)
+        try? save()
     }
 
     /// Saves an answer to "How are you feeling?", and puts it on today's log if there is one.
     func logFeeling(_ feeling: String, source: String = "notification") {
         context.insert(LogEvent(kind: .feeling, note: feeling, source: source))
-        let today = log(for: .now)
-        today?.mood = feeling
-        try? save(syncing: today)
+        if let today = log(for: .now) {
+            today.mood = feeling
+            today.updatedAt = .now
+        }
+        try? save()
     }
 
     func refresh() {
@@ -133,11 +134,55 @@ final class CheckInStore {
         })
     }
 
-    private func save(syncing day: DailyLog?) throws {
+    /// Saves on the phone, then sends anything that changed to the backend.
+    private func save() throws {
         try context.save()
         refresh()
-        if let day, let backend {
-            Task { try? await backend.sync(day) }
+        syncPending()
+    }
+
+    // MARK: - Backend sync
+
+    /// Why the last sync failed, if it did. Cleared by the next successful one.
+    private(set) var syncError: String?
+    @ObservationIgnored private var isSyncing = false
+
+    /// Sends every log that changed since it was last synced to the backend, which saves it in Snowflake.
+    /// Logs always save on the phone first, so a sync that fails (no backend, no signal) is retried
+    /// the next time something is logged or the app comes back to the foreground.
+    func syncPending() {
+        guard !isSyncing, let settings = BackendSettings.load() else { return }
+        let logs = (try? context.fetch(FetchDescriptor<DailyLog>())) ?? []
+        let pending = logs.filter { $0.syncedVersion != $0.updatedAt }
+        guard !pending.isEmpty else { return }
+
+        isSyncing = true
+        let client = BackendClient(settings: settings)
+        Task {
+            defer { isSyncing = false }
+            for log in pending {
+                // Remember which version was sent, so an edit made while this request is
+                // in flight still counts as unsynced.
+                let version = log.updatedAt
+                do {
+                    try await client.sendLog(
+                        dayKey: log.dayKey,
+                        cigarettes: log.cigarettesSmoked,
+                        vapes: log.vapes,
+                        pouches: log.pouches,
+                        cravingLevel: log.cravingLevel,
+                        mood: log.mood,
+                        note: log.note,
+                        source: log.source
+                    )
+                    log.syncedVersion = version
+                    syncError = nil
+                } catch {
+                    syncError = error.localizedDescription
+                    break
+                }
+            }
+            try? context.save()
         }
     }
 }

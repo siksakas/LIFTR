@@ -104,11 +104,11 @@ final class CoachThread {
     }
 
     /// The conversation so far in the backend's format, newest last.
-    var chatHistory: [LiftrBackend.ChatMessage] {
-        let messages = items.compactMap { item -> LiftrBackend.ChatMessage? in
+    var chatHistory: [CoachMessage] {
+        let messages = items.compactMap { item -> CoachMessage? in
             switch item.kind {
-            case let .tuk(text, _): return LiftrBackend.ChatMessage(role: "assistant", content: text)
-            case let .me(text), let .voice(text): return LiftrBackend.ChatMessage(role: "user", content: text)
+            case let .tuk(text, _): return CoachMessage(fromUser: false, text: text)
+            case let .me(text), let .voice(text): return CoachMessage(fromUser: true, text: text)
             case .separator, .note: return nil
             }
         }

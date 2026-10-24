@@ -9,13 +9,5 @@
 	     for example https://your-backend.ondigitalocean.app/elevenlabs/token -->
 	<key>ConversationTokenURL</key>
 	<string></string>
-	<!-- Optional. The LIFTR backend (backend/), for Coach's typed replies and saving logs to
-	     Snowflake, for example https://your-backend.ondigitalocean.app. Left empty, it's worked
-	     out from ConversationTokenURL when that points at the backend. -->
-	<key>BackendURL</key>
-	<string></string>
-	<!-- Only if the backend sets APP_TOKEN. -->
-	<key>AppToken</key>
-	<string></string>
 </dict>
 </plist>
