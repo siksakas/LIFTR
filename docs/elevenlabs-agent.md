@@ -1,6 +1,7 @@
 # ElevenLabs check-in partner setup
 
-The **Talk** tab in Liftr connects to an ElevenLabs Agent. The user tells it how their day went,
+The **Coach** tab in Liftr connects to an ElevenLabs Agent when the user taps the waveform button
+next to the text box (or **Talk to your partner** on the Today tab). The user tells it how their day went,
 and the agent calls two **client tools** that run inside the app to log the day and read back
 progress. Nothing about the agent lives in code except the tool names below, so you can tune the
 voice and personality in the ElevenLabs dashboard without shipping a new build.
@@ -88,7 +89,7 @@ Description: *Get the user's current sober streak, Liftr score, and pet health.*
 2. Set `AgentID` to the agent's ID (shown on the agent page, starts with `agent_`).
 3. Build and run. Xcode will fetch the `ElevenLabs` Swift package the first time.
 
-Or skip the plist: run the app, open the **Talk** tab, and paste the agent ID into the setup card.
+Or skip the plist: run the app, open the **Coach** tab, and paste the agent ID into the setup card.
 It's saved on the device. A plist, if present, takes priority.
 
 ### Public vs private agent
@@ -99,6 +100,13 @@ It's saved on the device. A plist, if present, takes priority.
   `GET https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=<id>` with your
   `xi-api-key` and returns `{"token": "..."}`. Put that endpoint's URL in `ConversationTokenURL`.
   Never put the ElevenLabs API key in the app.
+
+## Where the call goes
+
+When a call ends, its lines stay in the Coach thread, so the text coach can see what was said.
+The transcript is also saved on the phone and, once the backend is connected, sent to Snowflake's
+`conversations` table (see `backend/README.md`). The check-in the agent logs syncs to `daily_logs`
+like any other.
 
 ## How the numbers work
 

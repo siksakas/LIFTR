@@ -2,7 +2,8 @@
 
 A small Node server that holds every API key, so the iOS app never has to. It does three things:
 
-- **Saves check-ins to Snowflake**, one row per user, day and product, mirroring `DailyLog` in the app.
+- **Saves check-ins to Snowflake**, one row per user, day and product, mirroring `DailyLog` in the app,
+  plus the transcript of every voice check-in.
 - **Runs the AI coach** on an open-weights model through DigitalOcean's serverless inference. Snowflake
   and `src/stats.js` compute the numbers; the model only puts them into words.
 - **Hands out ElevenLabs conversation tokens**, so the voice agent can be private
@@ -15,6 +16,8 @@ across devices, and the text coach.
 
 1. **Snowflake.** Open a SQL worksheet in Snowsight, paste all of `snowflake/setup.sql`, select
    everything (Ctrl/Cmd + A) and run it. Copy the `token_secret` from the last result; it's shown once.
+   Already ran an older copy? Run it again for the new `conversations` table; only the last line fails,
+   and your existing token keeps working.
 2. **DigitalOcean.** In the control panel, open serverless inference under the AI platform, then
    Model Access Keys, and create one.
 3. **ElevenLabs.** Create an API key in your account settings. Set up the agent with
@@ -41,6 +44,10 @@ curl localhost:8080/health
 curl -X POST localhost:8080/logs -H "Content-Type: application/json" -H "X-User-Id: demo-user-0001" \
   -d '{"dayKey":"2026-10-24","quantity":3,"cravingLevel":6,"mood":"stressed"}'
 
+curl -X POST localhost:8080/conversations -H "Content-Type: application/json" -H "X-User-Id: demo-user-0001" \
+  -d '{"id":"demo-call-0001","startedAt":"2026-10-24T20:00:00Z","endedAt":"2026-10-24T20:03:00Z",
+       "messages":[{"role":"assistant","text":"How did today go?"},{"role":"user","text":"No cigarettes today!"}]}'
+
 curl localhost:8080/stats -H "X-User-Id: demo-user-0001"
 
 curl -X POST localhost:8080/coach -H "Content-Type: application/json" -H "X-User-Id: demo-user-0001" \
@@ -54,8 +61,9 @@ curl localhost:8080/elevenlabs/token
 1. Start the backend on your Mac with `npm run dev`.
 2. Run the app in the simulator, open the **Coach** tab, and save `http://localhost:8080`.
    (Or copy `Config/Backend.example.plist` to `LIFTR/Backend.plist`, which is gitignored.)
-3. From then on, every check-in, manual or by voice, also syncs to Snowflake. A failed sync retries the
-   next time you log or reopen the app. The Coach tab shows a warning while syncing fails.
+3. From then on, every check-in, manual or by voice, also syncs to Snowflake, and so does the transcript
+   of each voice call in the Coach tab. A failed sync retries the next time you log or reopen the app.
+   The Coach tab shows a warning while syncing fails.
 
 On a real iPhone, `localhost` means the phone itself. Use your Mac's Wi-Fi address instead (System
 Settings → Wi-Fi → Details, for example `http://192.168.1.20:8080`), or the deployed DigitalOcean URL.
@@ -66,6 +74,7 @@ Settings → Wi-Fi → Details, for example `http://192.168.1.20:8080`), or the 
 |---|---|
 | `GET /health` | Returns `{"ok":true}`. No headers needed. |
 | `POST /logs` | Saves a day. Body: `dayKey` (`yyyy-MM-dd`), `quantity`, and optionally `productType` (cigarette, vape, pouch, cigar, gum, other; default cigarette), `unit`, `cravingLevel` (0 to 10), `mood`, `note`, `source` (`voice` or `manual`). Same day and product again overwrites it. |
+| `POST /conversations` | Saves a voice check-in's transcript. Body: `id` (8 to 64 letters, digits or dashes), `startedAt` and `endedAt` (ISO 8601), `messages` (`[{"role": "user" or "assistant", "text": "..."}]`), and optionally `loggedSummary`. Same `id` again overwrites it. |
 | `GET /stats` | Last 60 days of daily totals plus a summary: averages for the last 7 and 30 days, change against the 30 days before, nicotine-free days, heaviest weekday, cravings and moods. |
 | `POST /coach` | Body: `messages` (the chat so far) and optionally `appProgress` (the score and streak the app already computed). Returns `{"reply": "..."}`. |
 | `GET /elevenlabs/token` | Returns `{"token": "..."}` for the app's `ConversationTokenURL`. |

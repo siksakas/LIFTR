@@ -68,30 +68,52 @@ final class CheckInStore {
         progress = RecoveryProgress(days: logs.map { .init(day: $0.day, cigarettes: $0.cigarettesSmoked) })
     }
 
+    /// Keeps what was said in a voice check-in, then sends it to the backend with the logs.
+    func saveTranscript(_ transcript: VoiceTranscript) {
+        context.insert(transcript)
+        try? context.save()
+        syncPending()
+    }
+
     // MARK: - Backend sync
 
     /// Why the last sync failed, if it did. Cleared by the next successful one.
     private(set) var syncError: String?
     @ObservationIgnored private var isSyncing = false
+    /// Set when something new is saved while a sync is running, so it's sent right after.
+    @ObservationIgnored private var syncAgain = false
 
-    /// Sends every log that changed since it was last synced to the backend, which saves it in Snowflake.
-    /// Logs always save on the phone first, so a sync that fails (no backend, no signal) is retried
+    /// Sends every log that changed since it was last synced, and every voice transcript not sent yet,
+    /// to the backend, which saves them in Snowflake.
+    /// Both always save on the phone first, so a sync that fails (no backend, no signal) is retried
     /// the next time something is logged or the app comes back to the foreground.
     func syncPending() {
-        guard !isSyncing, let settings = BackendSettings.load() else { return }
+        guard let settings = BackendSettings.load() else { return }
+        guard !isSyncing else {
+            syncAgain = true
+            return
+        }
+        syncAgain = false
         let logs = (try? context.fetch(FetchDescriptor<DailyLog>())) ?? []
-        let pending = logs.filter { $0.syncedVersion != $0.updatedAt }
-        guard !pending.isEmpty else { return }
+        let pendingLogs = logs.filter { $0.syncedVersion != $0.updatedAt }
+        let pendingTranscripts = (try? context.fetch(FetchDescriptor<VoiceTranscript>(
+            predicate: #Predicate { $0.syncedAt == nil },
+            sortBy: [SortDescriptor(\.startedAt)]
+        ))) ?? []
+        guard !pendingLogs.isEmpty || !pendingTranscripts.isEmpty else { return }
 
         isSyncing = true
         let client = BackendClient(settings: settings)
         Task {
-            defer { isSyncing = false }
-            for log in pending {
-                // Remember which version was sent, so an edit made while this request is
-                // in flight still counts as unsynced.
-                let version = log.updatedAt
-                do {
+            defer {
+                isSyncing = false
+                if syncAgain { syncPending() }
+            }
+            do {
+                for log in pendingLogs {
+                    // Remember which version was sent, so an edit made while this request is
+                    // in flight still counts as unsynced.
+                    let version = log.updatedAt
                     try await client.sendLog(
                         dayKey: log.dayKey,
                         cigarettes: log.cigarettesSmoked,
@@ -101,11 +123,14 @@ final class CheckInStore {
                         source: log.source
                     )
                     log.syncedVersion = version
-                    syncError = nil
-                } catch {
-                    syncError = error.localizedDescription
-                    break
                 }
+                for transcript in pendingTranscripts {
+                    try await client.sendTranscript(transcript)
+                    transcript.syncedAt = .now
+                }
+                syncError = nil
+            } catch {
+                syncError = error.localizedDescription
             }
             try? context.save()
         }

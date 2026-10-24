@@ -18,7 +18,7 @@ struct LIFTRApp: App {
     init() {
         let container: ModelContainer
         do {
-            container = try ModelContainer(for: DailyLog.self)
+            container = try ModelContainer(for: DailyLog.self, VoiceTranscript.self)
         } catch {
             fatalError("Couldn't open the Liftr database: \(error)")
         }

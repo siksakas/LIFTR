@@ -5,14 +5,19 @@
 
 import SwiftUI
 
-/// Text chat with the AI coach. The coach runs on an open-weights model on DigitalOcean,
-/// reached through the backend, and reads the user's trends from Snowflake.
+/// One place to talk to Liftr: a voice check-in with the ElevenLabs partner, or a text chat with
+/// the AI coach. The text coach runs on an open-weights model on DigitalOcean, reached through the
+/// backend, and reads the user's trends from Snowflake. Voice calls land in the same thread, so the
+/// text coach knows what was said, and their transcripts are synced to Snowflake.
 struct CoachView: View {
     @Environment(CheckInStore.self) private var store
+    @Environment(CheckInPartner.self) private var partner
     @State private var messages: [CoachMessage] = []
     @State private var draft = ""
     @State private var isWaiting = false
     @State private var errorMessage: String?
+    /// Last voice line already copied into `messages`, so a call is only added once.
+    @State private var lastFoldedLineID: String?
     /// Bumped when a backend URL is saved in the app, so the view re-checks the settings.
     @State private var settingsRevision = 0
 
@@ -28,23 +33,26 @@ struct CoachView: View {
         return BackendSettings.load()
     }
 
+    /// Lines of the call in progress. Once it ends they're copied into `messages`.
+    private var liveLines: [CheckInPartner.Line] {
+        partner.status.isLive ? partner.lines : []
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if settings == nil {
-                    BackendSetupCard {
-                        settingsRevision += 1
-                        store.syncPending()
-                    }
-                    .padding()
-                    Spacer()
+                conversation
+                if partner.status.isLive {
+                    callBar
                 } else {
-                    conversation
-                    quickPromptRow
+                    if settings != nil { quickPromptRow }
                     inputBar
                 }
             }
             .navigationTitle("Coach")
+            .animation(.default, value: partner.status.isLive)
+            .onChange(of: partner.status.isLive) { foldInFinishedCall() }
+            .onAppear(perform: foldInFinishedCall)
         }
     }
 
@@ -52,22 +60,39 @@ struct CoachView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
-                    if messages.isEmpty {
-                        Text("Ask for help with a craving, or about your progress. The coach can see your check-ins.")
+                    if settings == nil {
+                        BackendSetupCard {
+                            settingsRevision += 1
+                            store.syncPending()
+                        }
+                    }
+                    if !partner.isConfigured {
+                        VoiceSetupCard()
+                    }
+                    if messages.isEmpty && liveLines.isEmpty {
+                        Text("Talk through your day by voice, or type to ask for help with a craving or about your progress. The coach can see your check-ins.")
                             .foregroundStyle(.secondary)
                             .padding(.vertical, 8)
                     }
                     ForEach(messages) { message in
-                        Text(message.text)
-                            .padding(10)
-                            .background(message.fromUser ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .frame(maxWidth: .infinity, alignment: message.fromUser ? .trailing : .leading)
-                            .id(message.id)
+                        Bubble(fromUser: message.fromUser, text: message.text, viaVoice: message.viaVoice)
+                    }
+                    ForEach(liveLines) { line in
+                        Bubble(fromUser: line.fromUser, text: line.text, viaVoice: true)
                     }
                     if isWaiting {
                         ProgressView()
                             .padding(.vertical, 4)
+                    }
+                    if !partner.status.isLive, let logged = partner.lastLogged {
+                        Label(logged, systemImage: "checkmark.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.green)
+                    }
+                    if case let .failed(message) = partner.status {
+                        Text("Voice check-in stopped: \(message)")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
                     }
                     if let errorMessage {
                         Text(errorMessage)
@@ -79,14 +104,61 @@ struct CoachView: View {
                             .font(.footnote)
                             .foregroundStyle(.orange)
                     }
+                    Color.clear
+                        .frame(height: 1)
+                        .id(Self.bottomID)
                 }
                 .padding()
             }
-            .onChange(of: messages.count) {
-                if let last = messages.last {
-                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+            .onChange(of: messages.count + liveLines.count) {
+                withAnimation { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
+            }
+        }
+    }
+
+    private static let bottomID = "bottom"
+
+    /// Shown instead of the text box while a voice check-in is live.
+    private var callBar: some View {
+        HStack(spacing: 12) {
+            StatusOrb(status: partner.status)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(callStatusText)
+                    .font(.headline)
+                if let logged = partner.lastLogged {
+                    Label(logged, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
                 }
             }
+            Spacer(minLength: 0)
+            Button {
+                Task { await partner.toggleMute() }
+            } label: {
+                Image(systemName: partner.isMuted ? "mic.slash.fill" : "mic.fill")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel(partner.isMuted ? "Unmute" : "Mute")
+            Button(role: .destructive) {
+                Task { await partner.end() }
+            } label: {
+                Image(systemName: "phone.down.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityLabel("End call")
+        }
+        .padding()
+        .background(.bar)
+        .animation(.default, value: partner.lastLogged)
+    }
+
+    private var callStatusText: String {
+        switch partner.status {
+        case .connecting: "Connecting…"
+        case .listening: "Listening"
+        case .thinking: "Thinking…"
+        case .speaking: "Speaking"
+        case .idle, .ended, .failed: ""
         }
     }
 
@@ -106,9 +178,19 @@ struct CoachView: View {
 
     private var inputBar: some View {
         HStack {
-            TextField("Message your coach", text: $draft, axis: .vertical)
+            Button {
+                startCall()
+            } label: {
+                Image(systemName: "waveform.circle.fill")
+                    .font(.title2)
+            }
+            .disabled(!partner.isConfigured)
+            .accessibilityLabel("Talk about your day")
+
+            TextField(settings == nil ? "Connect the backend to chat" : "Message your coach", text: $draft, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...4)
+                .disabled(settings == nil)
                 .onSubmit { send(draft) }
             Button {
                 send(draft)
@@ -116,10 +198,24 @@ struct CoachView: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.title2)
             }
-            .disabled(isWaiting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(settings == nil || isWaiting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .accessibilityLabel("Send")
         }
         .padding([.horizontal, .bottom])
+    }
+
+    private func startCall() {
+        foldInFinishedCall()
+        errorMessage = nil
+        Task { await partner.start() }
+    }
+
+    /// Copies a finished call's lines into the thread, so they stay after the next call starts
+    /// and the text coach can read them.
+    private func foldInFinishedCall() {
+        guard !partner.status.isLive, let last = partner.lines.last, last.id != lastFoldedLineID else { return }
+        lastFoldedLineID = last.id
+        messages += partner.lines.map { CoachMessage(fromUser: $0.fromUser, text: $0.text, viaVoice: true) }
     }
 
     private func send(_ text: String) {
@@ -141,6 +237,64 @@ struct CoachView: View {
             } catch {
                 errorMessage = "The coach couldn't answer: \(error.localizedDescription)"
             }
+        }
+    }
+}
+
+private struct Bubble: View {
+    var fromUser: Bool
+    var text: String
+    var viaVoice: Bool
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if viaVoice {
+                Image(systemName: "waveform")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Said by voice")
+            }
+            Text(text)
+        }
+        .padding(10)
+        .background(fromUser ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(maxWidth: .infinity, alignment: fromUser ? .trailing : .leading)
+    }
+}
+
+private struct StatusOrb: View {
+    var status: CheckInPartner.Status
+
+    var body: some View {
+        Circle()
+            .fill(color.gradient)
+            .frame(width: 44, height: 44)
+            .scaleEffect(status == .speaking ? 1.1 : 1)
+            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: status == .speaking)
+            .overlay {
+                Image(systemName: symbol)
+                    .foregroundStyle(.white)
+            }
+    }
+
+    private var color: Color {
+        switch status {
+        case .listening: .green
+        case .speaking: .blue
+        case .thinking, .connecting: .orange
+        case .failed: .red
+        case .idle, .ended: .gray
+        }
+    }
+
+    private var symbol: String {
+        switch status {
+        case .listening: "ear"
+        case .speaking: "waveform"
+        case .thinking, .connecting: "ellipsis"
+        case .failed: "exclamationmark.triangle"
+        case .idle, .ended: "mic"
         }
     }
 }
@@ -187,5 +341,43 @@ private struct BackendSetupCard: View {
         invalid = false
         UserDefaults.standard.set(url.absoluteString, forKey: BackendSettings.savedURLKey)
         onSave()
+    }
+}
+
+private struct VoiceSetupCard: View {
+    @Environment(CheckInPartner.self) private var partner
+    @State private var agentID = ""
+    @State private var invalid = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Voice partner isn't set up yet")
+                .font(.headline)
+            Text("Paste your ElevenLabs agent ID below, or add it to LIFTR/ElevenLabs.plist. See docs/elevenlabs-agent.md.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            HStack {
+                TextField("agent_…", text: $agentID)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onSubmit(save)
+                Button("Save", action: save)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(agentID.isEmpty)
+            }
+            if invalid {
+                Text("That doesn't look like an agent ID. It starts with agent_.")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func save() {
+        invalid = !partner.saveAgentID(agentID)
     }
 }

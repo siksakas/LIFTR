@@ -78,3 +78,32 @@ export async function recentDays(userId, days = 60) {
     [userId, -(days - 1)]
   );
 }
+
+/** Creates or replaces one voice call's transcript. `messages` is [{ role, text }]. */
+export async function upsertConversation(userId, convo) {
+  await query(
+    `MERGE INTO conversations t
+     USING (SELECT ? AS user_id, ? AS conversation_id, ? AS channel,
+                   TO_TIMESTAMP_TZ(?) AS started_at, TO_TIMESTAMP_TZ(?) AS ended_at,
+                   ? AS message_count, ? AS logged_summary, PARSE_JSON(?) AS transcript) s
+     ON t.user_id = s.user_id AND t.conversation_id = s.conversation_id
+     WHEN MATCHED THEN UPDATE SET
+       channel = s.channel, started_at = s.started_at, ended_at = s.ended_at,
+       message_count = s.message_count, logged_summary = s.logged_summary,
+       transcript = s.transcript, updated_at = CURRENT_TIMESTAMP()
+     WHEN NOT MATCHED THEN INSERT
+       (user_id, conversation_id, channel, started_at, ended_at, message_count, logged_summary, transcript)
+       VALUES (s.user_id, s.conversation_id, s.channel, s.started_at, s.ended_at,
+               s.message_count, s.logged_summary, s.transcript)`,
+    [
+      userId,
+      convo.id,
+      convo.channel,
+      convo.startedAt,
+      convo.endedAt,
+      convo.messages.length,
+      convo.loggedSummary,
+      JSON.stringify(convo.messages),
+    ]
+  );
+}

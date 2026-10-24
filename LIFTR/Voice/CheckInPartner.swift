@@ -63,6 +63,8 @@ final class CheckInPartner {
     /// Bumped by every start and end, so a connection that finishes after the user
     /// already tapped End (or started again) can tell it's stale and hang up.
     @ObservationIgnored private var attempt = 0
+    /// When the current call connected. Cleared once its transcript is saved, so it's saved once.
+    @ObservationIgnored private var callStartedAt: Date?
 
     init(store: CheckInStore) {
         self.store = store
@@ -99,6 +101,7 @@ final class CheckInPartner {
                 return
             }
             self.conversation = conversation
+            callStartedAt = .now
             observe(conversation)
         } catch {
             if thisAttempt == attempt { status = .failed(error.localizedDescription) }
@@ -111,6 +114,7 @@ final class CheckInPartner {
         stopObserving()
         conversation = nil
         if status.isLive { status = .ended }
+        saveTranscript()
     }
 
     func toggleMute() async {
@@ -175,10 +179,25 @@ final class CheckInPartner {
         case .ended:
             status = .ended
             stopObserving()
+            saveTranscript()
         case let .error(error):
             status = .failed(error.localizedDescription)
             stopObserving()
+            saveTranscript()
         }
+    }
+
+    /// Keeps what was said in the call that just ended, so it's synced to Snowflake.
+    /// Calls where the user never spoke aren't worth keeping.
+    private func saveTranscript() {
+        guard let startedAt = callStartedAt else { return }
+        callStartedAt = nil
+        guard lines.contains(where: \.fromUser) else { return }
+        store.saveTranscript(VoiceTranscript(
+            startedAt: startedAt,
+            lines: lines.map { .init(fromUser: $0.fromUser, text: $0.text) },
+            loggedSummary: lastLogged
+        ))
     }
 
     private func handle(_ call: ClientToolCallEvent, in conversation: Conversation) async {

@@ -46,13 +46,28 @@ SELECT user_id, day_key,
 FROM daily_logs
 GROUP BY user_id, day_key;
 
--- 5. Let the backend's role read and write
+-- 5. Voice check-in transcripts from the Coach tab: one row per call, the whole conversation in `transcript`.
+-- The app sends a call again until it's saved, so the backend MERGEs on (user_id, conversation_id).
+CREATE TABLE IF NOT EXISTS conversations (
+  user_id         STRING NOT NULL,
+  conversation_id STRING NOT NULL,   -- random ID the app gives each call
+  channel         STRING NOT NULL DEFAULT 'voice',
+  started_at      TIMESTAMP_TZ,
+  ended_at        TIMESTAMP_TZ,
+  message_count   NUMBER,
+  logged_summary  STRING,            -- what the agent logged, e.g. 'Today logged as sober'
+  transcript      VARIANT,           -- [{"role": "user" | "assistant", "text": "..."}]
+  updated_at      TIMESTAMP_TZ DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (user_id, conversation_id)   -- recorded, not enforced
+);
+
+-- 6. Let the backend's role read and write
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA LIFTR.APP TO ROLE LIFTR_APP_ROLE;
 GRANT SELECT ON ALL VIEWS IN SCHEMA LIFTR.APP TO ROLE LIFTR_APP_ROLE;
 GRANT SELECT, INSERT, UPDATE, DELETE ON FUTURE TABLES IN SCHEMA LIFTR.APP TO ROLE LIFTR_APP_ROLE;
 GRANT SELECT ON FUTURE VIEWS IN SCHEMA LIFTR.APP TO ROLE LIFTR_APP_ROLE;
 
--- 6. A login for the backend (not for a person)
+-- 7. A login for the backend (not for a person)
 CREATE USER IF NOT EXISTS LIFTR_BACKEND
   TYPE = SERVICE DEFAULT_ROLE = LIFTR_APP_ROLE DEFAULT_WAREHOUSE = LIFTR_WH;
 GRANT ROLE LIFTR_APP_ROLE TO USER LIFTR_BACKEND;
@@ -62,7 +77,7 @@ GRANT ROLE LIFTR_APP_ROLE TO USER LIFTR_BACKEND;
 CREATE NETWORK POLICY IF NOT EXISTS LIFTR_BACKEND_POLICY ALLOWED_IP_LIST = ('0.0.0.0/0');
 ALTER USER LIFTR_BACKEND SET NETWORK_POLICY = LIFTR_BACKEND_POLICY;
 
--- 7. The token, shown ONCE in the token_secret column.
+-- 8. The token, shown ONCE in the token_secret column.
 -- Running the file again makes this line fail because the token exists. That's fine; the old one still works.
 -- For a fresh one, first run: ALTER USER LIFTR_BACKEND REMOVE PROGRAMMATIC ACCESS TOKEN liftr_backend_token;
 ALTER USER LIFTR_BACKEND ADD PROGRAMMATIC ACCESS TOKEN liftr_backend_token

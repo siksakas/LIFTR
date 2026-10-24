@@ -10,6 +10,8 @@ struct CoachMessage: Identifiable, Equatable {
     let id = UUID()
     var fromUser: Bool
     var text: String
+    /// Said during a voice check-in rather than typed.
+    var viaVoice = false
 }
 
 /// Calls the Liftr backend. See `backend/README.md` for the routes.
@@ -33,6 +35,19 @@ struct BackendClient {
         if let mood { body["mood"] = mood }
         if let note { body["note"] = note }
         _ = try await post("logs", body: body)
+    }
+
+    /// Saves one voice check-in's transcript to Snowflake. Sending the same ID again overwrites it.
+    func sendTranscript(_ transcript: VoiceTranscript) async throws {
+        let iso = ISO8601DateFormatter()
+        var body: [String: Any] = [
+            "id": transcript.id,
+            "startedAt": iso.string(from: transcript.startedAt),
+            "endedAt": iso.string(from: transcript.endedAt),
+            "messages": transcript.lines.map { ["role": $0.fromUser ? "user" : "assistant", "text": $0.text] },
+        ]
+        if let summary = transcript.loggedSummary { body["loggedSummary"] = summary }
+        _ = try await post("conversations", body: body)
     }
 
     /// Asks the AI coach for its next reply. The backend adds the user's trends from Snowflake;

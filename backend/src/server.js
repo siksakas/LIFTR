@@ -1,10 +1,11 @@
 import express from "express";
-import { upsertDailyLog, recentDays } from "./snowflake.js";
+import { upsertDailyLog, upsertConversation, recentDays } from "./snowflake.js";
 import { summarize } from "./stats.js";
 import { coachReply } from "./coach.js";
 
 const app = express();
-app.use(express.json({ limit: "100kb" }));
+// Room for a long voice call's transcript.
+app.use(express.json({ limit: "500kb" }));
 
 const PRODUCTS = ["cigarette", "vape", "pouch", "cigar", "gum", "other"];
 
@@ -53,6 +54,41 @@ app.post("/logs", async (req, res, next) => {
       mood: b.mood || null,
       note: b.note || null,
       source: b.source === "voice" ? "voice" : "manual",
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Save one voice check-in's transcript, sent by the app when the call ends.
+ * Body: { id, startedAt, endedAt (ISO 8601), messages: [{ role: "user" | "assistant", text }], loggedSummary? }
+ * Sending the same id again overwrites it.
+ */
+app.post("/conversations", async (req, res, next) => {
+  const uid = userId(req, res);
+  if (!uid) return;
+  const b = req.body ?? {};
+  const isTime = (v) => typeof v === "string" && !Number.isNaN(Date.parse(v));
+  const messages = Array.isArray(b.messages)
+    ? b.messages
+        .filter((m) => (m?.role === "user" || m?.role === "assistant") && typeof m.text === "string" && m.text.trim())
+        .map((m) => ({ role: m.role, text: m.text.slice(0, 4000) }))
+    : [];
+
+  if (!/^[A-Za-z0-9-]{8,64}$/.test(b.id ?? "")) return res.status(400).json({ error: "id must be 8 to 64 letters, digits or dashes." });
+  if (!isTime(b.startedAt) || !isTime(b.endedAt)) return res.status(400).json({ error: "startedAt and endedAt must be ISO 8601 times." });
+  if (!messages.length) return res.status(400).json({ error: "Send at least one message." });
+
+  try {
+    await upsertConversation(uid, {
+      id: b.id,
+      channel: "voice",
+      startedAt: b.startedAt,
+      endedAt: b.endedAt,
+      messages: messages.slice(0, 500),
+      loggedSummary: typeof b.loggedSummary === "string" && b.loggedSummary ? b.loggedSummary.slice(0, 200) : null,
     });
     res.json({ ok: true });
   } catch (err) {
