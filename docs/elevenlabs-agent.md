@@ -13,8 +13,12 @@ In the ElevenLabs dashboard, go to **Agents → New agent → Blank agent** and 
 **First message**
 
 ```
-Hey! Good to hear from you. {{pet_name}} is feeling {{pet_mood}} today. How did your day go?
+{{opening_message}}
 ```
+
+The app writes this line when the call starts, from what's already logged today: nothing yet,
+a sober day so far, or the cigarettes, vapes and pouches logged and how that compares with the
+user's usual by this time of day.
 
 **System prompt**
 
@@ -49,7 +53,7 @@ Rules:
   encourage them to contact a medical professional or emergency services.
 ```
 
-All eight `{{variables}}` above are sent by the app when the call starts. (`pet_name` and
+All nine `{{variables}}` above are sent by the app when the call starts. (`pet_name` and
 `pet_mood` keep their old names so agents set up before Tuk keep working.) If you add a new
 variable to the prompt, add it to `dynamicVariables()` in `LIFTR/Voice/CheckInPartner.swift` too,
 or the conversation will fail to start.

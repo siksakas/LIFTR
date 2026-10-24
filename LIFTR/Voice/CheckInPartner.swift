@@ -293,7 +293,47 @@ final class CheckInPartner {
             // Older agent prompts call Tuk "the pet"; these keep their greeting working.
             "pet_name": TukStage.name,
             "pet_mood": progress.stage.mood,
+            "opening_message": openingMessage(),
         ]
+    }
+
+    /// What Tuk says first, from what's already logged today. The agent's first message
+    /// in the ElevenLabs dashboard should be just {{opening_message}}.
+    private func openingMessage() -> String {
+        let progress = store.progress
+        guard progress.firstDay != nil else {
+            return "Hi, I'm Tuk. I'm here to help you cut down, one day at a time. How's today going?"
+        }
+        let streak = progress.currentStreak
+        guard progress.loggedToday else {
+            let streakLine = streak > 0 ? " You're on a \(streak)-day streak." : ""
+            return "Hey, it's Tuk. Nothing logged yet today.\(streakLine) How's it going so far?"
+        }
+
+        let counts: [(Product, Int)] = [
+            (.cigarette, progress.cigarettesToday ?? 0),
+            (.vape, progress.vapesToday),
+            (.pouch, progress.pouchesToday),
+        ]
+        let logged = counts.filter { $0.1 > 0 }.map { "\($0.1) \($0.0.noun($0.1))" }
+        guard !logged.isEmpty else {
+            let streakLine = streak > 1 ? " That's \(streak) days in a row." : ""
+            return "Hey, it's Tuk. No nicotine today.\(streakLine) I'm proud of you. How are you feeling?"
+        }
+
+        let list = logged.count == 1
+            ? logged[0]
+            : logged.dropLast().joined(separator: ", ") + " and " + logged[logged.count - 1]
+        var message = "Hey, it's Tuk. So far today you've logged \(list)."
+        if let usual = store.patterns.usualCigarettesByNow.map({ Int($0.rounded()) }) {
+            let cigarettes = progress.cigarettesToday ?? 0
+            if cigarettes < usual {
+                message += " That's fewer cigarettes than you'd usually have by now. Nice."
+            } else if cigarettes > usual {
+                message += " A bit more than usual, and that's okay. Some days are harder."
+            }
+        }
+        return message + " How's it going?"
     }
 
     /// Drops the agent's expressive audio tags, like "[happy]" or "[laughs]", from its text.
