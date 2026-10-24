@@ -22,6 +22,9 @@ struct CoachView: View {
     @State private var draft = ""
     /// Lines from the current or last voice call that aren't in the thread yet.
     @State private var showsCallLines = false
+    /// Tuk's replies that have finished appearing, so they don't type out again
+    /// after the thinking dots.
+    @State private var revealedTukIDs: Set<String> = []
     /// Set when a voice call ends, to show where the day stands.
     @State private var showsDayCard = false
     @FocusState private var isTyping: Bool
@@ -150,8 +153,9 @@ struct CoachView: View {
         return items
     }
 
-    /// The last sentence of what Tuk said, with any cards from that same turn.
+    /// Tuk's latest reply in full, with any cards from that same turn.
     private struct TukTurn: Equatable {
+        var id: String
         var text: String
         var attachments: [CoachThread.Attachment]
     }
@@ -167,7 +171,7 @@ struct CoachView: View {
             return attachment
         }
         guard case let .tuk(text, _) = items[last].kind else { return nil }
-        return TukTurn(text: text.lastSentence, attachments: attachments)
+        return TukTurn(id: items[last].id, text: text, attachments: attachments)
     }
 
     private var latestUser: CoachThread.Item? {
@@ -209,7 +213,9 @@ struct CoachView: View {
                             TypingDots().transition(.opacity)
                         } else if let latestTuk {
                             VStack(spacing: 12) {
-                                Text(latestTuk.text)
+                                WordByWord(text: latestTuk.text, animates: !revealedTukIDs.contains(latestTuk.id)) {
+                                    revealedTukIDs.insert(latestTuk.id)
+                                }
                                     .font(.tuk(17))
                                     .foregroundStyle(Palette.tukInk)
                                     .lineSpacing(3)
@@ -219,7 +225,9 @@ struct CoachView: View {
                                         .frame(maxWidth: 300)
                                 }
                             }
-                            .id(latestTuk.text)
+                            // Keyed to the message, not its text, so a reply that's still
+                            // streaming in keeps revealing from where it got to.
+                            .id(latestTuk.id)
                             .transition(.opacity.combined(with: .offset(y: 8)))
                         }
 
@@ -476,10 +484,52 @@ private struct UserLine: View {
 }
 
 private extension String {
-    /// Only the newest sentence, so Coach shows one line from each side at a time.
+    /// Only the newest sentence, so Coach shows just the last thing the user said.
     var lastSentence: String {
         let last = CheckInPartner.sentences(in: self).last.map(String.init) ?? self
         return last.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+/// Reveals text a word at a time. The hidden words still take up their space,
+/// so the centred lines don't reflow as it fills in.
+private struct WordByWord: View {
+    var text: String
+    var animates = true
+    var onFinished: () -> Void = {}
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shownWords = 0
+
+    private static let delay = Duration.milliseconds(80)
+
+    var body: some View {
+        let ends = Self.wordEnds(in: text)
+        let count = reduceMotion || !animates ? ends.count : min(shownWords, ends.count)
+        let split = count == 0 ? text.startIndex : ends[count - 1]
+        (Text(text[..<split]) + Text(text[split...]).foregroundColor(.clear))
+            .accessibilityLabel(text)
+            .task(id: text) {
+                guard animates, !reduceMotion else { return }
+                // The text can grow while it streams in; carry on from the words already shown.
+                while shownWords < Self.wordEnds(in: text).count {
+                    try? await Task.sleep(for: Self.delay)
+                    guard !Task.isCancelled else { return }
+                    shownWords += 1
+                }
+                onFinished()
+            }
+    }
+
+    /// Where each word ends, counting the space after it.
+    private static func wordEnds(in text: String) -> [String.Index] {
+        var ends: [String.Index] = []
+        var start = text.startIndex
+        while let word = text.range(of: #"\S+\s*"#, options: .regularExpression, range: start..<text.endIndex) {
+            ends.append(word.upperBound)
+            start = word.upperBound
+        }
+        return ends
     }
 }
 
