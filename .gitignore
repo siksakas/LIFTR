@@ -1,0 +1,9 @@
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# Local ElevenLabs settings (agent ID, token endpoint). See Config/ElevenLabs.example.plist.
+LIFTR/ElevenLabs.plist
+# Local secrets written by `elevenlabs onboard`
+/.env.local
