@@ -134,9 +134,12 @@ final class CheckInPartner {
             },
             Task { [weak self] in
                 for await messages in conversation.$messages.values {
-                    self?.lines = messages
-                        .filter { !$0.content.isEmpty }
-                        .map { Line(id: $0.id, fromUser: $0.role == .user, text: $0.content) }
+                    self?.lines = messages.compactMap { message in
+                        let fromUser = message.role == .user
+                        let text = fromUser ? message.content : CheckInPartner.removingAudioTags(message.content)
+                        guard !text.isEmpty else { return nil }
+                        return Line(id: message.id, fromUser: fromUser, text: text)
+                    }
                 }
             },
             Task { [weak self] in
@@ -209,6 +212,14 @@ final class CheckInPartner {
             "pet_name": Pet.name,
             "pet_mood": progress.petMood.rawValue,
         ]
+    }
+
+    /// Drops the agent's expressive audio tags, like "[happy]" or "[laughs]", from its text.
+    /// Also drops a tag still being streamed in, so "[hap" doesn't flash on screen.
+    nonisolated static func removingAudioTags(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: #"[ \t]*\[[A-Za-z][A-Za-z '\-]*(\]|$)"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Asks our own backend for a conversation token for a private agent.
