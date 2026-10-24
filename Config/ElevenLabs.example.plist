@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Copy to LIFTR/ElevenLabs.plist (gitignored) and fill in. See docs/elevenlabs-agent.md. -->
+<plist version="1.0">
+<dict>
+	<key>AgentID</key>
+	<string>YOUR_AGENT_ID</string>
+	<!-- Leave empty for a public agent. For a private agent, the backend's token route,
+	     for example https://your-backend.ondigitalocean.app/elevenlabs/token -->
+	<key>ConversationTokenURL</key>
+	<string></string>
+</dict>
+</plist>
