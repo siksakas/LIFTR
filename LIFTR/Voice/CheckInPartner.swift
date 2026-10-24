@@ -183,8 +183,8 @@ final class CheckInPartner {
     // MARK: - Captions
 
     /// Roughly how fast Tuk talks, plus a short breath between sentences.
-    private static let charactersPerSecond = 14.0
-    private static let pauseBetweenSentences = Duration.milliseconds(250)
+    private static let charactersPerSecond = 16.0
+    private static let pauseBetweenSentences = Duration.milliseconds(200)
 
     private func update(lines newLines: [Line]) {
         fullLines = newLines
