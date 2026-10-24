@@ -134,6 +134,50 @@ final class CheckInStore {
         })
     }
 
+    // MARK: - Sample data
+
+    var hasSampleData: Bool {
+        _ = progress
+        let source = SampleData.source
+        return ((try? context.fetchCount(FetchDescriptor<DailyLog>(predicate: #Predicate { $0.source == source }))) ?? 0) > 0
+    }
+
+    /// Fills the last two weeks with `SampleData` for a demo. Days that already have a log
+    /// are left as they are.
+    func addSampleData(now: Date = .now) throws {
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: now)
+        for sample in SampleData.days {
+            guard let day = calendar.date(byAdding: .day, value: -sample.daysAgo, to: todayStart),
+                  log(for: day) == nil else { continue }
+            let entry = DailyLog(
+                day: day,
+                cigarettesSmoked: 0,
+                cravingLevel: sample.cravingLevel,
+                mood: sample.mood,
+                note: sample.note,
+                source: SampleData.source
+            )
+            for moment in sample.moments {
+                let time = calendar.date(bySettingHour: moment.hour, minute: moment.minute, second: 0, of: day) ?? day
+                context.insert(LogEvent(kind: moment.kind, timestamp: time, trigger: moment.trigger, source: SampleData.source))
+                if let product = Product(rawValue: moment.kind.rawValue) {
+                    entry.setCount(entry.count(of: product) + 1, of: product)
+                }
+            }
+            context.insert(entry)
+        }
+        try save()
+    }
+
+    /// Takes out everything `addSampleData` added.
+    func removeSampleData() throws {
+        let source = SampleData.source
+        try context.delete(model: DailyLog.self, where: #Predicate { $0.source == source })
+        try context.delete(model: LogEvent.self, where: #Predicate { $0.source == source })
+        try save()
+    }
+
     /// Saves on the phone, then sends anything that changed to the backend.
     private func save() throws {
         try context.save()
