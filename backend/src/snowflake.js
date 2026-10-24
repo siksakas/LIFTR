@@ -39,12 +39,31 @@ export async function query(sqlText, binds = []) {
   );
 }
 
-/** Creates or replaces one day's log for one product, like CheckInStore.record in the app. */
-export async function upsertDailyLog(userId, log) {
+/**
+ * Creates or replaces one day's log, one row per product, like CheckInStore.record in the app.
+ * `products` is a list of { productType, quantity, unit }. Runs as a single MERGE.
+ */
+export async function upsertDailyLog(userId, day, products) {
+  const rows = products.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
+  const binds = products.flatMap((p) => [
+    userId,
+    day.dayKey,
+    p.productType,
+    p.quantity,
+    p.unit,
+    day.cravingLevel,
+    day.mood,
+    day.note,
+    day.source,
+  ]);
   await query(
     `MERGE INTO daily_logs t
-     USING (SELECT ? AS user_id, TO_DATE(?) AS day_key, ? AS product_type, ? AS quantity, ? AS unit,
-                   ? AS craving_level, ? AS mood, ? AS note, ? AS source) s
+     USING (
+       SELECT column1 AS user_id, TO_DATE(column2) AS day_key, column3 AS product_type, column4::FLOAT AS quantity,
+              column5 AS unit, column6::NUMBER(2) AS craving_level, column7::STRING AS mood,
+              column8::STRING AS note, column9 AS source
+       FROM VALUES ${rows}
+     ) s
      ON t.user_id = s.user_id AND t.day_key = s.day_key AND t.product_type = s.product_type
      WHEN MATCHED THEN UPDATE SET
        quantity = s.quantity, unit = s.unit,
@@ -54,17 +73,7 @@ export async function upsertDailyLog(userId, log) {
      WHEN NOT MATCHED THEN INSERT
        (user_id, day_key, product_type, quantity, unit, craving_level, mood, note, source)
        VALUES (s.user_id, s.day_key, s.product_type, s.quantity, s.unit, s.craving_level, s.mood, s.note, s.source)`,
-    [
-      userId,
-      log.dayKey,
-      log.productType,
-      log.quantity,
-      log.unit,
-      log.cravingLevel,
-      log.mood,
-      log.note,
-      log.source,
-    ]
+    binds
   );
 }
 

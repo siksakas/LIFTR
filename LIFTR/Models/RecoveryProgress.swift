@@ -12,6 +12,8 @@ import Foundation
 struct RecoveryProgress: Equatable {
     struct Day: Equatable {
         var day: Date
+        /// Every nicotine use that day (cigarettes, vape sessions, pouches, other), not only cigarettes.
+        /// The name stays because the voice agent's prompt and tools use "cigarettes".
         var cigarettes: Int
     }
 

@@ -21,12 +21,22 @@ struct BackendClient {
         var errorDescription: String? { message }
     }
 
-    /// Saves one day's check-in to Snowflake. Sending the same day again overwrites it.
-    func sendLog(dayKey: String, cigarettes: Int, cravingLevel: Int?, mood: String?, note: String?, source: String) async throws {
+    /// Saves one day's check-in to Snowflake, one row per nicotine type. Sending the same day again overwrites it.
+    func sendLog(
+        dayKey: String,
+        cigarettes: Int,
+        vapeSessions: Int,
+        pouches: Int,
+        otherUses: Int,
+        cravingLevel: Int?,
+        mood: String?,
+        note: String?,
+        source: String
+    ) async throws {
         var body: [String: Any] = [
             "dayKey": dayKey,
-            "quantity": cigarettes,
-            "productType": "cigarette",
+            // Every type is sent, zeros included, so a correction like "no vaping after all" overwrites the old row.
+            "products": ["cigarette": cigarettes, "vape": vapeSessions, "pouch": pouches, "other": otherUses],
             "source": source,
         ]
         if let cravingLevel { body["cravingLevel"] = cravingLevel }

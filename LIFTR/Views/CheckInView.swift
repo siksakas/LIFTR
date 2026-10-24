@@ -60,14 +60,26 @@ struct CheckInView: View {
                 .buttonStyle(.borderedProminent)
             }
         } else {
-            Button {
-                Task { await partner.start() }
-            } label: {
-                Label("Talk about your day", systemImage: "waveform")
-                    .frame(maxWidth: .infinity)
+            VStack(spacing: 10) {
+                Button {
+                    Task { await partner.start(reason: .craving) }
+                } label: {
+                    Label("I'm having a craving", systemImage: "flame")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+                .controlSize(.large)
+
+                Button {
+                    Task { await partner.start() }
+                } label: {
+                    Label("Talk about your day", systemImage: "waveform")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
             .disabled(!partner.isConfigured)
         }
     }

@@ -9,7 +9,7 @@ import SwiftData
 import SwiftUI
 
 struct ContentView: View {
-    enum Tab { case today, talk, coach }
+    enum Tab { case today, trends, talk, coach }
 
     @State private var tab = Tab.today
 
@@ -18,6 +18,9 @@ struct ContentView: View {
             TodayView(onTalk: { tab = .talk })
                 .tabItem { Label("Today", systemImage: "leaf") }
                 .tag(Tab.today)
+            TrendsView()
+                .tabItem { Label("Trends", systemImage: "chart.bar.xaxis") }
+                .tag(Tab.trends)
             CheckInView()
                 .tabItem { Label("Talk", systemImage: "waveform") }
                 .tag(Tab.talk)

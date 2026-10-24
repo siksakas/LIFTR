@@ -11,6 +11,8 @@ struct TodayView: View {
     @Environment(CheckInStore.self) private var store
     @Query(sort: \DailyLog.dayKey, order: .reverse) private var logs: [DailyLog]
     @State private var showingManualLog = false
+    @State private var confirmingDelete = false
+    @State private var dataError: String?
     var onTalk: () -> Void
 
     var body: some View {
@@ -30,10 +32,10 @@ struct TodayView: View {
                 }
 
                 Section("Today") {
-                    if let cigarettes = progress.cigarettesToday {
+                    if let today = logs.first(where: { $0.dayKey == DailyLog.key(for: .now) }) {
                         Label(
-                            cigarettes == 0 ? "Sober today" : "\(cigarettes) cigarette\(cigarettes == 1 ? "" : "s") today",
-                            systemImage: cigarettes == 0 ? "checkmark.seal.fill" : "smoke"
+                            today.isSober ? "Sober today" : "\(today.summary) today",
+                            systemImage: today.isSober ? "checkmark.seal.fill" : "smoke"
                         )
                     } else {
                         Text("You haven't checked in yet.")
@@ -55,6 +57,43 @@ struct TodayView: View {
             .sheet(isPresented: $showingManualLog) {
                 ManualLogView()
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Load demo data", systemImage: "wand.and.stars") {
+                            perform { try store.loadDemoData() }
+                        }
+                        Button("Delete all check-ins", systemImage: "trash", role: .destructive) {
+                            confirmingDelete = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("More")
+                }
+            }
+            .confirmationDialog("Delete every check-in on this phone?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                Button("Delete all", role: .destructive) {
+                    perform { try store.deleteAllLogs() }
+                }
+            } message: {
+                Text("Your streak and score start over. Check-ins already saved to Snowflake stay there.")
+            }
+            .alert("Something went wrong", isPresented: Binding(get: { dataError != nil }, set: { if !$0 { dataError = nil } })) {
+                Button("OK") { dataError = nil }
+            } message: {
+                Text(dataError ?? "")
+            }
+        }
+    }
+}
+
+extension TodayView {
+    private func perform(_ action: () throws -> Void) {
+        do {
+            try action()
+        } catch {
+            dataError = error.localizedDescription
         }
     }
 }
@@ -149,7 +188,8 @@ private struct HistoryRow: View {
                 }
             }
             Spacer()
-            Text(log.isSober ? "Sober" : "\(log.cigarettesSmoked) smoked")
+            Text(log.summary)
+                .multilineTextAlignment(.trailing)
                 .foregroundStyle(.secondary)
             if log.source == "voice" {
                 Image(systemName: "waveform")
