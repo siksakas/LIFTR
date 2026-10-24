@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Copy to LIFTR/Backend.plist (gitignored) and fill in. See backend/README.md.
+     Or skip this file and type the address into the Coach tab. -->
+<plist version="1.0">
+<dict>
+	<!-- http://localhost:8080 in the simulator while `npm run dev` runs on the same Mac.
+	     On a real iPhone, use the Mac's Wi-Fi address (for example http://192.168.1.20:8080)
+	     or the deployed https://your-backend.ondigitalocean.app -->
+	<key>BaseURL</key>
+	<string>http://localhost:8080</string>
+	<!-- Only if APP_TOKEN is set in the backend's environment -->
+	<key>AppToken</key>
+	<string></string>
+</dict>
+</plist>
