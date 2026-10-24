@@ -93,7 +93,10 @@ final class CheckInPartner {
         attempt += 1
         let thisAttempt = attempt
 
-        let config = ConversationConfig(dynamicVariables: dynamicVariables())
+        let config = ConversationConfig(
+            ttsOverrides: TukVoice.savedVoiceID.map { TTSOverrides(voiceId: $0) },
+            dynamicVariables: dynamicVariables()
+        )
         do {
             let conversation: Conversation
             if let tokenURL = settings.conversationTokenURL {

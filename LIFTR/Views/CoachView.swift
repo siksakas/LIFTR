@@ -22,6 +22,7 @@ struct CoachView: View {
     @State private var draft = ""
     /// Lines from the current or last voice call that aren't in the thread yet.
     @State private var showsCallLines = false
+    @State private var showingVoiceSettings = false
     @FocusState private var isTyping: Bool
 
     /// Bumped when a backend address is saved in the app, so the view re-checks the settings.
@@ -61,6 +62,9 @@ struct CoachView: View {
             thread.start(patterns: store.patterns, reminders: reminders)
             handleRouterRequests()
         }
+        .sheet(isPresented: $showingVoiceSettings) {
+            VoiceSettingsSheet()
+        }
         .onChange(of: router.coachStartsVoice) { handleRouterRequests() }
         .onChange(of: router.coachPrefersText) { handleRouterRequests() }
         .onChange(of: partner.status) {
@@ -93,6 +97,18 @@ struct CoachView: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Type or talk")
             }
+            Button {
+                showingVoiceSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(Palette.ink)
+                    .frame(width: 44, height: 44)
+                    .background(Palette.card, in: Circle())
+                    .overlay(Circle().strokeBorder(Palette.cardBorder, lineWidth: 1))
+            }
+            .buttonStyle(.pressable)
+            .accessibilityLabel("Voice settings")
         }
         .padding(.horizontal, 16)
         .frame(height: 56)

@@ -58,7 +58,12 @@ All nine `{{variables}}` above are sent by the app when the call starts. (`pet_n
 variable to the prompt, add it to `dynamicVariables()` in `LIFTR/Voice/CheckInPartner.swift` too,
 or the conversation will fail to start.
 
-Pick any voice you like under **Voice**.
+Pick any voice you like under **Voice**. That's the voice Tuk uses until the user picks another
+from the gear on the Coach screen.
+
+For that picker to work, go to the agent's **Security** tab and, under **Overrides**, turn on
+**Voice**. Without it, a call fails to start once the user picks any voice other than "Tuk's usual
+voice". The voices on offer are listed in `LIFTR/Voice/TukVoice.swift`.
 
 ## 2. Add the client tools
 
