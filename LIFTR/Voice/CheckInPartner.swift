@@ -83,10 +83,7 @@ final class CheckInPartner {
             return
         }
 
-        lines = []
-        fullLines = []
-        spokenLineID = nil
-        lastLogged = nil
+        clearTranscript()
         handledToolCalls = []
         status = .connecting
         store.refresh()
@@ -116,6 +113,15 @@ final class CheckInPartner {
         } catch {
             if thisAttempt == attempt { status = .failed(error.localizedDescription) }
         }
+    }
+
+    /// Forgets the last call's lines, so a new call starts with an empty transcript.
+    func clearTranscript() {
+        guard !status.isLive else { return }
+        lines = []
+        fullLines = []
+        spokenLineID = nil
+        lastLogged = nil
     }
 
     func end() async {

@@ -18,7 +18,6 @@ struct TukVoice: Identifiable, Hashable {
         TukVoice(voiceID: nil, name: "Tuk's usual voice", detail: "The voice set on the agent"),
         TukVoice(voiceID: "bIHbv24MWmeRgasZH58o", name: "Will", detail: "Relaxed, laid back"),
         TukVoice(voiceID: "SAz9YHcvj6GT2YYXdXww", name: "River", detail: "Calm, neutral"),
-        TukVoice(voiceID: "cgSgspJ2msm6clMCkdW9", name: "Jessica", detail: "Playful, bright, warm"),
         TukVoice(voiceID: "XrExE9yKIg1WjnnlVkGX", name: "Matilda", detail: "Upbeat, warm alto"),
         TukVoice(voiceID: "CwhRBWXzGAHq8TQ4Fs17", name: "Roger", detail: "Easygoing, resonant"),
         TukVoice(voiceID: "iP95p4xoKVk53GoZ742B", name: "Chris", detail: "Down-to-earth"),

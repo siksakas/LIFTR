@@ -363,6 +363,8 @@ struct CoachView: View {
     private func startCall() {
         foldCallIntoThread()
         thread.clearSuggestions()
+        // Clear the last call now, so its lines don't show again while the new one connects.
+        partner.clearTranscript()
         showsCallLines = true
         Task { await partner.start() }
     }
@@ -370,7 +372,8 @@ struct CoachView: View {
     /// Moves the last call's transcript into the thread. A new call clears `partner.lines`.
     private func foldCallIntoThread() {
         guard showsCallLines, !partner.status.isLive else { return }
-        thread.append(callItems)
+        // Fresh IDs, since every call reuses "call-logged" and "call-failed".
+        thread.append(callItems.map { CoachThread.Item(kind: $0.kind) })
         showsCallLines = false
     }
 }
