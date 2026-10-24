@@ -22,6 +22,8 @@ struct CoachView: View {
     @State private var draft = ""
     /// Lines from the current or last voice call that aren't in the thread yet.
     @State private var showsCallLines = false
+    /// Set when a voice call ends, to show where the day stands.
+    @State private var showsDayCard = false
     @FocusState private var isTyping: Bool
 
     /// Bumped when a backend address is saved in the app, so the view re-checks the settings.
@@ -64,7 +66,11 @@ struct CoachView: View {
         .onChange(of: router.coachPrefersText) { handleRouterRequests() }
         .onChange(of: partner.status) {
             // Fold a finished call into the thread so typing afterwards keeps the order.
-            if !partner.status.isLive, case .ended = partner.status { foldCallIntoThread() }
+            if !partner.status.isLive, case .ended = partner.status {
+                foldCallIntoThread()
+                store.refresh()
+                showsDayCard = true
+            }
         }
     }
 
@@ -170,7 +176,7 @@ struct CoachView: View {
 
     /// A note like "✓ Logged" or an error, when it's the newest thing in the conversation.
     private var trailingNote: String? {
-        guard case let .note(text) = (thread.items + callItems).last?.kind else { return nil }
+        guard !showsDayCard, case let .note(text) = (thread.items + callItems).last?.kind else { return nil }
         return text
     }
 
@@ -231,6 +237,11 @@ struct CoachView: View {
                             .transition(.opacity)
                         }
 
+                        if showsDayCard {
+                            DayCard()
+                                .transition(.opacity.combined(with: .offset(y: 10)))
+                        }
+
                         if let trailingNote {
                             Text(trailingNote)
                                 .font(.figtree(13, .semibold, relativeTo: .footnote))
@@ -252,6 +263,7 @@ struct CoachView: View {
                     .animation(.easeOut(duration: 0.3), value: latestUser)
                     .animation(.easeOut(duration: 0.3), value: tukIsComposing)
                     .animation(.easeOut(duration: 0.3), value: thread.suggestions)
+                    .animation(.spring(duration: 0.45), value: showsDayCard)
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollDismissesKeyboard(.interactively)
@@ -259,6 +271,7 @@ struct CoachView: View {
                 .onChange(of: latestTuk) { scrollToBottom(proxy) }
                 .onChange(of: latestUser) { scrollToBottom(proxy) }
                 .onChange(of: isTyping) { scrollToBottom(proxy) }
+                .onChange(of: showsDayCard) { scrollToBottom(proxy) }
             }
         }
     }
@@ -412,6 +425,7 @@ struct CoachView: View {
     private func startCall() {
         foldCallIntoThread()
         thread.clearSuggestions()
+        showsDayCard = false
         showsCallLines = true
         Task { await partner.start() }
     }
@@ -466,6 +480,89 @@ private extension String {
     var lastSentence: String {
         let last = CheckInPartner.sentences(in: self).last.map(String.init) ?? self
         return last.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+/// Where today stands, shown after a voice call ends. Styled like the card on Log.
+private struct DayCard: View {
+    @Environment(CheckInStore.self) private var store
+    @Environment(AppRouter.self) private var router
+
+    var body: some View {
+        let progress = store.progress
+        let today = store.log(for: .now)
+        let counts: [(Product, Int)] = [
+            (.cigarette, progress.cigarettesToday ?? 0),
+            (.vape, progress.vapesToday),
+            (.pouch, progress.pouchesToday),
+        ]
+        let logged = counts.filter { $0.1 > 0 }.map { "\($0.1) \($0.0.noun($0.1))" }
+
+        let title: String
+        let line: String
+        if !logged.isEmpty {
+            title = "Today · \(logged.joined(separator: " · "))"
+            line = "That's today so far. Thanks for being honest with me."
+        } else if progress.loggedToday {
+            title = "Today · No nicotine"
+            line = "Nothing today. I'm proud of you."
+        } else {
+            title = "Today · Nothing logged yet"
+            line = "Tell me later how the rest of the day goes."
+        }
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                TukView(stage: max(progress.stage, .cuttingDown))
+                    .frame(width: 92, height: 92)
+                    .frame(width: 96, height: 96)
+                    .background(Palette.paper, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .font(.figtree(17, .heavy, relativeTo: .headline))
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(line)
+                        .font(.tuk())
+                        .foregroundStyle(Palette.tukInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            let details = [
+                today?.cravingLevel.map { "Craving \($0)/10" },
+                today?.mood.map { "Feeling \($0.lowercased())" },
+                logged.isEmpty && progress.currentStreak > 0 ? "\(progress.currentStreak)-day streak" : nil,
+            ].compactMap { $0 }
+            if !details.isEmpty {
+                FlowLayout(spacing: 8) {
+                    ForEach(details, id: \.self) { Pill(text: $0) }
+                }
+            }
+
+            HStack(spacing: 10) {
+                LeafNote(text: logged.isEmpty
+                    ? "Each log helps Tuk learn."
+                    : "A slip moves Tuk back one step at most. Never to the start.")
+                Spacer(minLength: 0)
+                Button("Edit in Log") { router.tab = .log }
+                    .font(.figtree(14, .heavy, relativeTo: .subheadline))
+                    .foregroundStyle(Palette.green)
+                    .padding(.horizontal, 12)
+                    .frame(height: 36)
+            }
+            .padding(.top, 10)
+            .overlay(alignment: .top) {
+                Line().stroke(Palette.dashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3])).frame(height: 1)
+            }
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 16)
+        .padding(.vertical, 14)
+        .liftrCard(radius: 26)
+        .accessibilityElement(children: .contain)
     }
 }
 
