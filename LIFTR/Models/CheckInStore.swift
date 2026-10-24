@@ -59,11 +59,55 @@ final class CheckInStore {
         }
         try context.save()
         refresh()
+        syncPending()
         return entry
     }
 
     func refresh() {
         let logs = (try? context.fetch(FetchDescriptor<DailyLog>())) ?? []
         progress = RecoveryProgress(days: logs.map { .init(day: $0.day, cigarettes: $0.cigarettesSmoked) })
+    }
+
+    // MARK: - Backend sync
+
+    /// Why the last sync failed, if it did. Cleared by the next successful one.
+    private(set) var syncError: String?
+    @ObservationIgnored private var isSyncing = false
+
+    /// Sends every log that changed since it was last synced to the backend, which saves it in Snowflake.
+    /// Logs always save on the phone first, so a sync that fails (no backend, no signal) is retried
+    /// the next time something is logged or the app comes back to the foreground.
+    func syncPending() {
+        guard !isSyncing, let settings = BackendSettings.load() else { return }
+        let logs = (try? context.fetch(FetchDescriptor<DailyLog>())) ?? []
+        let pending = logs.filter { $0.syncedVersion != $0.updatedAt }
+        guard !pending.isEmpty else { return }
+
+        isSyncing = true
+        let client = BackendClient(settings: settings)
+        Task {
+            defer { isSyncing = false }
+            for log in pending {
+                // Remember which version was sent, so an edit made while this request is
+                // in flight still counts as unsynced.
+                let version = log.updatedAt
+                do {
+                    try await client.sendLog(
+                        dayKey: log.dayKey,
+                        cigarettes: log.cigarettesSmoked,
+                        cravingLevel: log.cravingLevel,
+                        mood: log.mood,
+                        note: log.note,
+                        source: log.source
+                    )
+                    log.syncedVersion = version
+                    syncError = nil
+                } catch {
+                    syncError = error.localizedDescription
+                    break
+                }
+            }
+            try? context.save()
+        }
     }
 }

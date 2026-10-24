@@ -49,6 +49,17 @@ curl -X POST localhost:8080/coach -H "Content-Type: application/json" -H "X-User
 curl localhost:8080/elevenlabs/token
 ```
 
+## Connect the iPhone app
+
+1. Start the backend on your Mac with `npm run dev`.
+2. Run the app in the simulator, open the **Coach** tab, and save `http://localhost:8080`.
+   (Or copy `Config/Backend.example.plist` to `LIFTR/Backend.plist`, which is gitignored.)
+3. From then on, every check-in, manual or by voice, also syncs to Snowflake. A failed sync retries the
+   next time you log or reopen the app. The Coach tab shows a warning while syncing fails.
+
+On a real iPhone, `localhost` means the phone itself. Use your Mac's Wi-Fi address instead (System
+Settings → Wi-Fi → Details, for example `http://192.168.1.20:8080`), or the deployed DigitalOcean URL.
+
 ## Routes
 
 | Route | What it does |
