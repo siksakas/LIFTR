@@ -34,8 +34,7 @@ struct CoachView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider().overlay(Color(hex: 0xECE4D6))
+            if Self.allowsTyping { header }
             conversation
         }
         .background(Palette.background)
@@ -73,31 +72,19 @@ struct CoachView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            TukAvatar(stage: max(store.progress.stage, .cuttingDown), size: 48)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Coach Tuk")
-                    .font(.figtree(18, .heavy, relativeTo: .headline))
-                    .foregroundStyle(Palette.ink)
-                Text("Learns only from your logs")
-                    .font(.figtree(13, relativeTo: .footnote))
-                    .foregroundStyle(Palette.inkSecondary)
-            }
             Spacer(minLength: 0)
-            if Self.allowsTyping {
-                HStack(spacing: 0) {
-                    segment("Text", isOn: mode == .text) { switchMode(.text) }
-                    segment("Voice", isOn: mode == .voice) { switchMode(.voice) }
-                }
-                .padding(3)
-                .background(Palette.sandDeep, in: Capsule())
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("Type or talk")
+            HStack(spacing: 0) {
+                segment("Text", isOn: mode == .text) { switchMode(.text) }
+                segment("Voice", isOn: mode == .voice) { switchMode(.voice) }
             }
+            .padding(3)
+            .background(Palette.sandDeep, in: Capsule())
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Type or talk")
         }
         .padding(.horizontal, 16)
-        .frame(height: 56)
+        .frame(height: 48)
         .padding(.top, 4)
-        .padding(.bottom, 6)
     }
 
     private func segment(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
@@ -157,62 +144,140 @@ struct CoachView: View {
         return items
     }
 
-    private var conversation: some View {
+    /// The last sentence of what Tuk said, with any cards from that same turn.
+    private struct TukTurn: Equatable {
+        var text: String
+        var attachments: [CoachThread.Attachment]
+    }
+
+    private var latestTuk: TukTurn? {
         let items = thread.items + callItems
+        guard let last = items.lastIndex(where: \.isFromTuk) else { return nil }
+        // Tuk's turn runs back to the user's last message, so a card he showed just before
+        // his latest line (like the week's toughest window) stays on screen with it.
+        let turnStart = items[..<last].lastIndex(where: \.isFromUser).map { $0 + 1 } ?? 0
+        let attachments = items[turnStart...last].compactMap { item -> CoachThread.Attachment? in
+            guard case let .tuk(_, attachment) = item.kind else { return nil }
+            return attachment
+        }
+        guard case let .tuk(text, _) = items[last].kind else { return nil }
+        return TukTurn(text: text.lastSentence, attachments: attachments)
+    }
+
+    private var latestUser: CoachThread.Item? {
+        (thread.items + callItems).last(where: \.isFromUser)
+    }
+
+    /// A note like "✓ Logged" or an error, when it's the newest thing in the conversation.
+    private var trailingNote: String? {
+        guard case let .note(text) = (thread.items + callItems).last?.kind else { return nil }
+        return text
+    }
+
+    private var tukIsComposing: Bool {
+        thread.isTyping || partner.status == .thinking
+    }
+
+    private var conversation: some View {
         let stage = max(store.progress.stage, .cuttingDown)
-        return ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(items) { item in
-                        CoachRow(item: item, stage: stage) { router.showingCravingHelp = true }
-                            .id(item.id)
-                            .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 10)), removal: .opacity))
-                    }
-                    if thread.isTyping || partner.status == .thinking {
-                        TypingBubble(stage: stage).id("typing")
-                    }
-                    if !thread.suggestions.isEmpty, !thread.isTyping {
-                        FlowLayout(spacing: 8) {
-                            ForEach(thread.suggestions, id: \.self) { suggestion in
-                                Button(suggestion.rawValue) { pick(suggestion) }
-                                    .font(.figtree(14, .heavy, relativeTo: .subheadline))
-                                    .foregroundStyle(Palette.greenDark)
-                                    .padding(.horizontal, 14)
-                                    .frame(height: 38)
-                                    .background(Palette.card, in: Capsule())
-                                    .overlay(Capsule().strokeBorder(Palette.green, lineWidth: 1.5))
-                                    .buttonStyle(.pressable)
+        return GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 18) {
+                        VStack(spacing: 10) {
+                            ZStack {
+                                if partner.status == .speaking || partner.status == .listening {
+                                    PulseRings(color: partner.status == .speaking ? Palette.greenPulse : Palette.blueRing, size: 168)
+                                        .frame(width: 168, height: 168)
+                                }
+                                TukAvatar(stage: stage, size: 168, lineWidth: 2)
                             }
+                            .frame(width: 168, height: 168)
+                            Text("Coach Tuk")
+                                .font(.figtree(22, .heavy, relativeTo: .title3))
+                                .foregroundStyle(Palette.ink)
                         }
-                        .padding(.leading, 38)
-                        .id("suggestions")
-                        .transition(.opacity)
+                        .padding(.bottom, 6)
+
+                        if tukIsComposing {
+                            TypingDots().transition(.opacity)
+                        } else if let latestTuk {
+                            VStack(spacing: 12) {
+                                Text(latestTuk.text)
+                                    .font(.tuk(17))
+                                    .foregroundStyle(Palette.tukInk)
+                                    .lineSpacing(3)
+                                    .multilineTextAlignment(.center)
+                                ForEach(Array(latestTuk.attachments.enumerated()), id: \.offset) { _, attachment in
+                                    AttachmentView(attachment: attachment) { router.showingCravingHelp = true }
+                                        .frame(maxWidth: 300)
+                                }
+                            }
+                            .id(latestTuk.text)
+                            .transition(.opacity.combined(with: .offset(y: 8)))
+                        }
+
+                        if let latestUser {
+                            UserLine(item: latestUser)
+                                .id(latestUser.id)
+                                .transition(.opacity.combined(with: .offset(y: 8)))
+                        }
+
+                        if !thread.suggestions.isEmpty, !thread.isTyping {
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: 8) { suggestionChips }
+                                VStack(spacing: 8) { suggestionChips }
+                            }
+                            .transition(.opacity)
+                        }
+
+                        if let trailingNote {
+                            Text(trailingNote)
+                                .font(.figtree(13, .semibold, relativeTo: .footnote))
+                                .foregroundStyle(Palette.inkSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        if let syncError = store.syncError {
+                            Label("Check-ins aren't syncing: \(syncError)", systemImage: "exclamationmark.icloud")
+                                .font(.figtree(13, .semibold, relativeTo: .footnote))
+                                .foregroundStyle(Palette.tanInk)
+                                .multilineTextAlignment(.center)
+                        }
+                        Color.clear.frame(height: 1).id("bottom")
                     }
-                    if let syncError = store.syncError {
-                        Label("Check-ins aren't syncing: \(syncError)", systemImage: "exclamationmark.icloud")
-                            .font(.figtree(13, .semibold, relativeTo: .footnote))
-                            .foregroundStyle(Palette.tanInk)
-                            .frame(maxWidth: .infinity)
-                    }
-                    Color.clear.frame(height: 1).id("bottom")
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                    .animation(.easeOut(duration: 0.3), value: latestTuk)
+                    .animation(.easeOut(duration: 0.3), value: latestUser)
+                    .animation(.easeOut(duration: 0.3), value: tukIsComposing)
+                    .animation(.easeOut(duration: 0.3), value: thread.suggestions)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .padding(.bottom, 12)
-                .animation(.easeOut(duration: 0.3), value: items)
-                .animation(.easeOut(duration: 0.3), value: thread.isTyping)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
+                // When the keyboard leaves less room than the stage needs, keep the newest lines in view.
+                .onChange(of: latestTuk) { scrollToBottom(proxy) }
+                .onChange(of: latestUser) { scrollToBottom(proxy) }
+                .onChange(of: isTyping) { scrollToBottom(proxy) }
             }
-            .scrollDismissesKeyboard(.interactively)
-            .onChange(of: items.count) { scrollToBottom(proxy) }
-            .onChange(of: items.last) { scrollToBottom(proxy) }
-            .onChange(of: thread.isTyping) { scrollToBottom(proxy) }
-            .onChange(of: isTyping) { scrollToBottom(proxy) }
-            .onAppear { proxy.scrollTo("bottom", anchor: .bottom) }
         }
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
+    }
+
+    private var suggestionChips: some View {
+        ForEach(thread.suggestions, id: \.self) { suggestion in
+            Button(suggestion.rawValue) { pick(suggestion) }
+                .font(.figtree(14, .heavy, relativeTo: .subheadline))
+                .foregroundStyle(Palette.greenDark)
+                .padding(.horizontal, 14)
+                .frame(height: 38)
+                .background(Palette.card, in: Capsule())
+                .overlay(Capsule().strokeBorder(Palette.green, lineWidth: 1.5))
+                .buttonStyle(.pressable)
+        }
     }
 
     // MARK: - Typing
@@ -359,67 +424,48 @@ struct CoachView: View {
     }
 }
 
-// MARK: - Rows
+// MARK: - Lines
 
-private struct CoachRow: View {
+/// The last sentence the user said or typed, under Tuk's.
+private struct UserLine: View {
     var item: CoachThread.Item
-    var stage: TukStage
-    var onBreathe: () -> Void
 
     var body: some View {
         switch item.kind {
-        case let .separator(text):
-            Text(text)
-                .font(.figtree(12, .bold, relativeTo: .caption))
-                .foregroundStyle(Palette.inkSecondary)
-                .frame(maxWidth: .infinity)
-        case let .note(text):
-            Text(text)
-                .font(.figtree(13, .semibold, relativeTo: .footnote))
-                .foregroundStyle(Palette.inkSecondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
         case let .me(text):
-            Text(text)
-                .font(.figtree(15, relativeTo: .body))
+            Text(text.lastSentence)
+                .font(.figtree(16, relativeTo: .body))
                 .foregroundStyle(Palette.greenInk)
-                .padding(.horizontal, 14)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Palette.greenBubble, in: MyBubbleShape())
-                .frame(maxWidth: 270, alignment: .trailing)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .background(Palette.greenBubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .accessibilityLabel("You: \(text.lastSentence)")
         case let .voice(text):
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(spacing: 7) {
                 WaveformBars(count: 24, idle: Color(hex: 0x5E7C62))
-                Text("“\(text)”")
-                    .font(.figtree(14, relativeTo: .subheadline))
+                Text("“\(text.lastSentence)”")
+                    .font(.figtree(15, relativeTo: .subheadline))
                     .italic()
                     .foregroundStyle(Palette.greenInk)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .frame(maxWidth: 252, alignment: .leading)
-            .background(Palette.greenBubble, in: MyBubbleShape())
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .background(Palette.greenBubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("You said: \(text)")
-        case let .tuk(text, attachment):
-            HStack(alignment: .bottom, spacing: 8) {
-                TukAvatar(stage: stage, size: 30)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(text)
-                    if let attachment {
-                        AttachmentView(attachment: attachment, onBreathe: onBreathe)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
-                .padding(.bottom, 11)
-                .tukBubble(radius: 20)
-            }
-            .frame(maxWidth: 322, alignment: .leading)
+            .accessibilityLabel("You said: \(text.lastSentence)")
+        case .tuk, .note, .separator:
+            EmptyView()
         }
+    }
+}
+
+private extension String {
+    /// Only the newest sentence, so Coach shows one line from each side at a time.
+    var lastSentence: String {
+        let last = CheckInPartner.sentences(in: self).last.map(String.init) ?? self
+        return last.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -517,28 +563,22 @@ private struct InsightCard: View {
     }
 }
 
-private struct TypingBubble: View {
-    var stage: TukStage
+/// Three bouncing dots in place of Tuk's line while he's working on a reply.
+private struct TypingDots: View {
     @State private var bounce = false
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TukAvatar(stage: stage, size: 30)
-            HStack(spacing: 5) {
-                ForEach(0..<3) { index in
-                    Circle()
-                        .fill(Color(hex: 0x7A6E62))
-                        .frame(width: 7, height: 7)
-                        .offset(y: bounce ? -3 : 0)
-                        .opacity(bounce ? 1 : 0.45)
-                        .animation(.easeInOut(duration: 0.6).repeatForever().delay(Double(index) * 0.15), value: bounce)
-                }
+        HStack(spacing: 6) {
+            ForEach(0..<3) { index in
+                Circle()
+                    .fill(Color(hex: 0x7A6E62))
+                    .frame(width: 8, height: 8)
+                    .offset(y: bounce ? -3 : 0)
+                    .opacity(bounce ? 1 : 0.45)
+                    .animation(.easeInOut(duration: 0.6).repeatForever().delay(Double(index) * 0.15), value: bounce)
             }
-            .padding(.horizontal, 16)
-            .frame(height: 40)
-            .background(Color.white, in: TukBubbleShape(radius: 20))
-            .overlay(TukBubbleShape(radius: 20).stroke(Palette.outline, lineWidth: 1.5))
         }
+        .frame(height: 28)
         .onAppear { bounce = true }
         .accessibilityLabel("Tuk is typing")
     }
